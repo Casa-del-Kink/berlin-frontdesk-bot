@@ -1,0 +1,39 @@
+# Config for ONE business. Adapting to another business = copy and edit this file.
+# Keys are in English (project language); data values stay in the business's own
+# language (here German, since it's a Berlin salon).
+name: "Glanz & Schnitt Berlin"
+timezone: "Europe/Berlin"
+language: "de"
+
+# Google Calendar ID to use (create a test calendar and share it with the Service Account).
+calendarId: "PUT_YOUR_CALENDAR_ID_HERE@group.calendar.google.com"
+
+# Owner's WhatsApp for alerts and the daily summary. Empty = no send (log only).
+# On the Twilio sandbox the owner must have joined the sandbox first.
+ownerWhatsapp: ""
+
+hours:
+  days: [1, 2, 3, 4, 5, 6]   # 1=Monday ... 7=Sunday (here Mon-Sat)
+  open: "09:00"
+  close: "19:00"
+
+services:
+  - name: "Damenhaarschnitt"
+    durationMin: 60
+    price: "ab 45 €"
+  - name: "Herrenhaarschnitt"
+    durationMin: 30
+    price: "ab 28 €"
+  - name: "Färben & Strähnen"
+    durationMin: 120
+    price: "ab 89 €"
+
+faq:
+  - q: "Wo seid ihr?"
+    a: "Beispielstraße 12, 10115 Berlin-Mitte, 2 Minuten vom U-Bahnhof Naturkundemuseum."
+  - q: "Habt ihr Parkplätze?"
+    a: "Direkt vorm Salon ist es begrenzt; in den Seitenstraßen findest du meist etwas."
+  - q: "Kann ich mit Karte zahlen?"
+    a: "Ja, Karte und bar sind beide möglich."
+
+tone: "Warm, casual and short. Informal (duzen). Like a friendly receptionist, no robotic phrasing."
