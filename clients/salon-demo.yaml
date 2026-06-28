@@ -12,6 +12,15 @@ calendarId: "PUT_YOUR_CALENDAR_ID_HERE@group.calendar.google.com"
 # On the Twilio sandbox the owner must have joined the sandbox first.
 ownerWhatsapp: ""
 
+# Optional: existing booking system link for clients on closed booking tools.
+bookingFallbackUrl: "https://example.com/book"
+
+# Used in the first-message/privacy answer. Validate legally before real clients.
+consentText: "Mit deiner Nachricht hilfst du uns, deine Anfrage zu bearbeiten. Das Team kann dich zur Terminabstimmung kontaktieren."
+
+# Triggers for immediate owner follow-up/handoff.
+handoffKeywords: ["mensch", "mitarbeiter", "chef", "beschwerde", "notfall", "human", "person", "manager", "complaint"]
+
 hours:
   days: [1, 2, 3, 4, 5, 6]   # 1=Monday ... 7=Sunday (here Mon-Sat)
   open: "09:00"

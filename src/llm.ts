@@ -1,10 +1,20 @@
 import OpenAI from "openai";
 
-const client = new OpenAI({
-  baseURL: "https://openrouter.ai/api/v1",
-  apiKey: process.env.OPENROUTER_API_KEY,
-  defaultHeaders: { "X-Title": "Berlin Front-Desk Bot" },
-});
+let cachedClient: OpenAI | null = null;
+
+function getOpenRouterClient(): OpenAI {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) {
+    throw new Error("Missing OPENROUTER_API_KEY. Set it in .env before handling AI conversations.");
+  }
+
+  cachedClient ??= new OpenAI({
+    baseURL: "https://openrouter.ai/api/v1",
+    apiKey,
+    defaultHeaders: { "X-Title": "Berlin Front-Desk Bot" },
+  });
+  return cachedClient;
+}
 
 const MODEL = process.env.OPENROUTER_MODEL || "anthropic/claude-haiku-4.5";
 
@@ -16,6 +26,7 @@ export async function runConversation(
   maxSteps = 5,
 ): Promise<string> {
   const msgs = [...messages];
+  const client = getOpenRouterClient();
 
   for (let i = 0; i < maxSteps; i++) {
     const res = await client.chat.completions.create({

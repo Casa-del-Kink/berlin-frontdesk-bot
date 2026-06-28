@@ -1,0 +1,159 @@
+import { spawn } from "node:child_process";
+import { existsSync, rmSync } from "node:fs";
+import { setTimeout as sleep } from "node:timers/promises";
+
+const PORT = Number(process.env.BATTLETEST_PORT || 4321);
+const BASE = `http://127.0.0.1:${PORT}`;
+const TOKEN = "server-battletest-token";
+const STATE_FILE = "data/server-battletest-state.json";
+const CALENDAR_FILE = "data/server-battletest-calendar.json";
+
+function removeIfExists(path: string) {
+  if (existsSync(path)) rmSync(path);
+}
+
+async function request(path: string, init: RequestInit = {}) {
+  return fetch(`${BASE}${path}`, init);
+}
+
+async function json(path: string, init: RequestInit = {}) {
+  const res = await request(path, init);
+  const text = await res.text();
+  let body: any;
+  try {
+    body = text ? JSON.parse(text) : undefined;
+  } catch {
+    body = text;
+  }
+  return { res, body };
+}
+
+function authJson(body?: unknown): RequestInit {
+  return {
+    method: "POST",
+    headers: { authorization: `Bearer ${TOKEN}`, "content-type": "application/json" },
+    body: JSON.stringify(body ?? {}),
+  };
+}
+
+function assert(condition: unknown, message: string): asserts condition {
+  if (!condition) throw new Error(message);
+}
+
+async function waitForHealth() {
+  const deadline = Date.now() + 15_000;
+  let lastError = "not attempted";
+  while (Date.now() < deadline) {
+    try {
+      const { res, body } = await json("/health");
+      if (res.ok && body?.ok) return;
+      lastError = `${res.status} ${JSON.stringify(body)}`;
+    } catch (e: any) {
+      lastError = String(e?.message ?? e);
+    }
+    await sleep(250);
+  }
+  throw new Error(`server did not become healthy: ${lastError}`);
+}
+
+async function main() {
+  removeIfExists(STATE_FILE);
+  removeIfExists(CALENDAR_FILE);
+
+  const child = spawn(process.execPath, ["./node_modules/.bin/tsx", "src/server.ts"], {
+    env: {
+      ...process.env,
+      PORT: String(PORT),
+      USE_FAKE_CALENDAR: "true",
+      FAKE_CALENDAR_FILE: CALENDAR_FILE,
+      STATE_FILE,
+      SERVER_TOOL_TOKEN: TOKEN,
+      SKIP_TWILIO_SIGNATURE_VALIDATION: "false",
+    },
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+
+  let stdout = "";
+  let stderr = "";
+  child.stdout.on("data", (chunk) => {
+    stdout += String(chunk);
+  });
+  child.stderr.on("data", (chunk) => {
+    stderr += String(chunk);
+  });
+
+  try {
+    await waitForHealth();
+
+    let out = await json("/metrics/today");
+    assert(out.res.status === 401, `metrics without bearer should be 401, got ${out.res.status}`);
+
+    out = await json("/metrics/today", { headers: { authorization: `Bearer ${TOKEN}` } });
+    assert(out.res.ok, `authorized metrics failed: ${out.res.status}`);
+    assert(out.body?.booked === 0, "fresh battletest state should start with 0 bookings");
+
+    out = await json(
+      "/tools/check_availability",
+      authJson({ phone: "whatsapp:+49100000001", args: { service: "Damenhaarschnitt", from: "2026-07-01", days: 3 } }),
+    );
+    assert(out.res.ok, `availability failed: ${out.res.status} ${JSON.stringify(out.body)}`);
+    assert(Array.isArray(out.body?.slots) && out.body.slots.length > 0, "availability should return slots");
+
+    out = await json(
+      "/tools/book_appointment",
+      authJson({
+        phone: "whatsapp:+49100000001",
+        args: { name: "Battle Test", service: "Damenhaarschnitt", start: "2026-07-01T10:00:00+02:00", channel: "whatsapp" },
+      }),
+    );
+    assert(out.res.ok, `booking failed: ${out.res.status} ${JSON.stringify(out.body)}`);
+    assert(out.body?.ok === true, `booking should return ok: ${JSON.stringify(out.body)}`);
+    assert(out.body?.estimatedValueCents === 4500, `booking revenue estimate mismatch: ${JSON.stringify(out.body)}`);
+
+    out = await json(
+      "/tools/book_appointment",
+      authJson({
+        phone: "whatsapp:+49100000002",
+        args: { name: "Double Test", service: "Damenhaarschnitt", start: "2026-07-01T10:00:00+02:00", channel: "phone" },
+      }),
+    );
+    assert(out.res.ok, "double-book guard should return a handled tool error, not crash the endpoint");
+    assert(out.body?.error === "Slot is no longer available", `double-book guard missing: ${JSON.stringify(out.body)}`);
+
+    out = await json(
+      "/webhook/voice/post-call",
+      authJson({ phone: "+49100000003", status: "needs_followup", summary: "Asked for colour consultation after hours" }),
+    );
+    assert(out.res.ok, `voice post-call failed: ${out.res.status} ${JSON.stringify(out.body)}`);
+    assert(out.body?.outcome?.status === "needs_followup", "voice status not stored");
+
+    const form = new URLSearchParams();
+    form.set("From", "whatsapp:+49100000004");
+    form.set("Body", "Hi");
+    out = await json("/webhook/whatsapp", { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body: form });
+    assert(out.res.status === 403, `unsigned Twilio webhook should be 403, got ${out.res.status}`);
+
+    out = await json("/privacy/export", authJson({}));
+    assert(out.res.status === 400, `privacy export without phone should be 400, got ${out.res.status}`);
+
+    out = await json("/metrics/today", { headers: { authorization: `Bearer ${TOKEN}` } });
+    assert(out.res.ok, `final metrics failed: ${out.res.status}`);
+    assert(out.body?.booked === 1, `final metrics booked should be 1: ${JSON.stringify(out.body)}`);
+    assert(out.body?.estimatedBookedRevenueCents === 4500, `final booked revenue mismatch: ${JSON.stringify(out.body)}`);
+    assert(out.body?.byChannel?.whatsapp === 1, `channel attribution mismatch: ${JSON.stringify(out.body)}`);
+
+    console.log("SERVER_BATTLETEST_OK");
+    console.log(JSON.stringify({ metrics: out.body }, null, 2));
+  } finally {
+    child.kill("SIGTERM");
+    await sleep(250);
+    if (!child.killed) child.kill("SIGKILL");
+    if (stderr.trim()) console.error(stderr.trim());
+    if (process.env.BATTLETEST_VERBOSE === "true" && stdout.trim()) console.log(stdout.trim());
+  }
+}
+
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

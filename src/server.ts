@@ -1,21 +1,135 @@
 import express from "express";
 import cron from "node-cron";
+import twilio from "twilio";
 import { DateTime } from "luxon";
-import { loadClient } from "./config.js";
+import { loadClient, validateRuntimeEnv } from "./config.js";
 import { buildSystemPrompt } from "./prompt.js";
 import { runConversation } from "./llm.js";
-import { toolDefs, makeHandlers } from "./tools.js";
-import { addMessage, getHistory, leadsOn } from "./store.js";
+import { toolDefs, makeHandlers, runTool } from "./tools.js";
+import { addCallOutcome, addMessage, callOutcomesOn, deleteSubjectData, exportSubjectData, getHistory, leadsOn, metricsOn, type CallOutcome } from "./store.js";
 import { sendWhatsapp } from "./whatsapp.js";
 
 const cfg = loadClient();
 const app = express();
+app.set("trust proxy", true);
 app.use(express.urlencoded({ extended: false }));
+app.use(express.json());
+
+for (const warning of validateRuntimeEnv()) console.warn(`[config] ${warning}`);
 
 app.get("/", (_req, res) => res.send(`OK - ${cfg.name}`));
+app.get("/health", (_req, res) => res.json({ ok: true, client: cfg.name, time: new Date().toISOString() }));
+
+function publicWebhookUrl(req: express.Request) {
+  const base = process.env.TWILIO_WEBHOOK_BASE_URL;
+  if (base) return `${base.replace(/\/$/, "")}${req.originalUrl}`;
+  return `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+}
+
+function validateTwilioRequest(req: express.Request) {
+  if (process.env.SKIP_TWILIO_SIGNATURE_VALIDATION === "true") return true;
+  const token = process.env.TWILIO_AUTH_TOKEN;
+  const signature = req.get("x-twilio-signature") || "";
+  if (!token || !signature) return false;
+  return twilio.validateRequest(token, signature, publicWebhookUrl(req), req.body);
+}
+
+function validateToolRequest(req: express.Request) {
+  const token = process.env.SERVER_TOOL_TOKEN;
+  if (!token) return true; // local/demo mode
+  return req.get("authorization") === `Bearer ${token}`;
+}
+
+function euros(cents: number) {
+  return new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(cents / 100);
+}
+
+function subjectPhone(req: express.Request) {
+  const phone = String(req.body?.phone || req.query.phone || "").trim();
+  if (!phone) throw new Error("Missing required phone");
+  return phone;
+}
+
+function callStatus(value: unknown): CallOutcome["status"] {
+  const status = String(value || "answered");
+  const allowed: CallOutcome["status"][] = ["booked", "needs_followup", "answered", "missed", "voicemail", "failed"];
+  return allowed.includes(status as CallOutcome["status"]) ? (status as CallOutcome["status"]) : "answered";
+}
+
+async function alertOwner(message: string) {
+  if (cfg.ownerWhatsapp) await sendWhatsapp(cfg.ownerWhatsapp, message);
+  else console.log(`[owner alert:DRYRUN] ${message}`);
+}
+
+// Shared "one brain" endpoint for WhatsApp, ElevenLabs server tools, or internal tests.
+app.post("/tools/:name", async (req, res) => {
+  if (!validateToolRequest(req)) return res.status(401).json({ error: "Unauthorized" });
+  const phone = String(req.body.phone || "external-tool");
+  try {
+    const result = await runTool(cfg, phone, req.params.name, req.body.args ?? req.body);
+    res.json(result);
+  } catch (e: any) {
+    console.error(`Error running tool ${req.params.name}:`, e);
+    res.status(500).json({ error: String(e?.message ?? e) });
+  }
+});
+
+// Operator-facing proof point for the narrow wedge: inquiries, bookings, and estimated recovered revenue.
+app.get("/metrics/today", (req, res) => {
+  if (!validateToolRequest(req)) return res.status(401).json({ error: "Unauthorized" });
+  const today = DateTime.now().setZone(cfg.timezone).toISODate()!;
+  res.json(metricsOn(today, cfg.timezone));
+});
+
+// Voice/phone post-call webhook for ElevenLabs/Twilio-style call summaries.
+// Do not store raw transcripts by default; store a short summary + optional URLs only when configured upstream.
+app.post("/webhook/voice/post-call", async (req, res) => {
+  if (!validateToolRequest(req)) return res.status(401).json({ error: "Unauthorized" });
+  const phone = String(req.body.phone || req.body.caller || "").trim();
+  if (!phone) return res.status(400).json({ error: "Missing required phone" });
+
+  const outcome = {
+    callId: String(req.body.callId || req.body.call_id || `call_${Date.now()}`),
+    phone,
+    status: callStatus(req.body.status),
+    summary: req.body.summary ? String(req.body.summary).slice(0, 1000) : undefined,
+    transcriptUrl: req.body.transcriptUrl ? String(req.body.transcriptUrl) : undefined,
+    recordingUrl: req.body.recordingUrl ? String(req.body.recordingUrl) : undefined,
+    createdAt: new Date().toISOString(),
+  };
+  addCallOutcome(outcome);
+
+  if (outcome.status === "needs_followup" || outcome.status === "missed" || outcome.status === "voicemail" || outcome.status === "failed") {
+    await alertOwner(`Phone follow-up needed: ${phone} · ${outcome.status}${outcome.summary ? ` · ${outcome.summary}` : ""}`);
+  }
+
+  res.json({ ok: true, outcome });
+});
+
+// GDPR-support endpoints for first pilots: export/delete one customer's stored conversation and lead data.
+// These are operator-only and must be bearer-protected in any real deployment via SERVER_TOOL_TOKEN.
+app.post("/privacy/export", (req, res) => {
+  if (!validateToolRequest(req)) return res.status(401).json({ error: "Unauthorized" });
+  try {
+    res.json(exportSubjectData(subjectPhone(req)));
+  } catch (e: any) {
+    res.status(400).json({ error: String(e?.message ?? e) });
+  }
+});
+
+app.post("/privacy/delete", (req, res) => {
+  if (!validateToolRequest(req)) return res.status(401).json({ error: "Unauthorized" });
+  try {
+    res.json(deleteSubjectData(subjectPhone(req)));
+  } catch (e: any) {
+    res.status(400).json({ error: String(e?.message ?? e) });
+  }
+});
 
 // Inbound Twilio WhatsApp webhook.
 app.post("/webhook/whatsapp", async (req, res) => {
+  if (!validateTwilioRequest(req)) return res.status(403).send("Invalid Twilio signature");
+
   const from = String(req.body.From || "");
   const body = String(req.body.Body || "").trim();
   res.sendStatus(200); // respond fast; the reply goes out via the REST API
@@ -41,6 +155,8 @@ app.post("/webhook/whatsapp", async (req, res) => {
 function dailySummary() {
   const today = DateTime.now().setZone(cfg.timezone).toISODate()!;
   const leads = leadsOn(today, cfg.timezone);
+  const calls = callOutcomesOn(today, cfg.timezone);
+  const metrics = metricsOn(today, cfg.timezone);
   const booked = leads.filter((l) => l.status === "booked");
   const followups = leads.filter((l) => l.status === "needs_followup");
 
@@ -48,6 +164,9 @@ function dailySummary() {
     `📋 Daily summary ${cfg.name} (${DateTime.now().setZone(cfg.timezone).toFormat("dd.LL.")})`,
     `• Inquiries today: ${leads.length}`,
     `• Booked appointments: ${booked.length}`,
+    `• Estimated booked revenue: ${euros(metrics.estimatedBookedRevenueCents)}`,
+    `• Phone calls logged: ${calls.length}`,
+    `• Channel mix: WhatsApp ${metrics.byChannel.whatsapp}, phone ${metrics.byChannel.phone}, tools ${metrics.byChannel.server_tool}`,
     ...booked.map(
       (b) => `   - ${b.name ?? "?"} · ${b.service ?? "?"} · ${b.startISO ? DateTime.fromISO(b.startISO).setZone(cfg.timezone).toFormat("dd.LL. HH:mm") : ""}`,
     ),
