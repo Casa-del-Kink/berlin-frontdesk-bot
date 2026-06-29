@@ -42,16 +42,18 @@ Merged to `main` in PR 1:
 - German live-pilot compliance pack
 - real Postgres backend
 
-Local branch with unpushed correction work:
+Current correction branch:
 
 ```text
 hermes/voice-first-compliance-correction
 ```
 
-Local commit currently includes:
+Branch is pushed to origin and currently includes:
 
 ```text
-efab2a2 Correct voice-first pilot compliance framing
+d9091e4 Fix Supabase Postgres start time schema
+0d2308d Fix battletest tsx launch on Windows
+cb73056 Use Supabase secret key REST smoke
 ```
 
 This branch adds or updates:
@@ -145,30 +147,39 @@ Decision:
 
 Use Supabase first. Neon is backup.
 
-Tasks:
+Status:
 
-- Create a test Supabase project or database.
-- Use a throwaway test database or schema.
-- Run `npm run postgres:smoke` with TLS if required.
-- Document Supabase connection settings and pitfalls. Current doc: `docs/supabase-postgres-setup.md`.
+Resolved for the Casa-del-Kink / Tilda Hermes workspace.
+
+Verified:
+
+- Supabase REST admin smoke through the gateway returned `SUPABASE_ADMIN_SMOKE_OK`.
+- App Postgres smoke returned `POSTGRES_STORE_SMOKE_OK`.
+- VPS/Hermes app runtime uses the Supabase transaction pooler with `PGSSL=true`.
+- The pooler path is preferred for the Hermes/VPS runtime because direct DB reachability can fail from that host.
+
+Completed tasks:
+
+- Created and used the Supabase project for the workspace.
+- Ran `npm run postgres:smoke` with TLS against hosted Supabase Postgres.
+- Documented Supabase connection settings and pitfalls. Current doc: `docs/supabase-postgres-setup.md`.
 - Keep credentials out of git.
 
-Blocked on:
+Still not the same as:
 
-- Supabase test database password or full `DATABASE_URL`
-- Supabase CLI access token if local CLI linking is required
-- outbound DB network reachability from this runtime to `db.dicxsxmdyjleigelwaya.supabase.co:5432`, or a reachable pooler/direct connection option
+- Supabase CLI linking, which is optional for app readiness and still requires CLI auth if needed later.
+- RLS/public API hardening, which should be handled before any browser-facing publishable key is used against user data.
 
 Acceptance criteria:
 
-- `npm run postgres:smoke` passes against Supabase.
+- `npm run postgres:smoke` passes against Supabase. Done.
 - The smoke test verifies schema creation, capped conversation history, idempotency, advisory booking lock, metrics, export/delete, and retention purge.
 - Docs state that production database is Supabase Postgres, with Neon as second option.
 
 Suggested command:
 
 ```bash
-SUPABASE_DB_PASSWORD='***' npm run supabase:postgres:smoke
+PGSSL=true DATABASE_URL='postgresql://postgres.[project-ref]:***@[region].pooler.supabase.com:6543/postgres' npm run postgres:smoke
 ```
 
 ### P3 - Voice provider path for first demo
@@ -319,7 +330,7 @@ If no new credentials are available, implement these in order:
 5. Add `google-calendar:smoke` script skeleton that fails clearly when credentials are missing.
 6. Add deterministic voice HTTP smoke test if not already covered by server battletest.
 
-If Supabase URL is available, run P2 before adding more docs.
+P2 is no longer an infrastructure blocker. Re-run the Supabase Postgres smoke only after schema/backend changes or when moving the runtime to a new host.
 
 If Google Calendar credentials are available, run P1 before adding more docs.
 

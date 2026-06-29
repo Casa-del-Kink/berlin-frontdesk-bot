@@ -40,7 +40,18 @@ DATABASE_URL='postgresql://postgres:***@db.dicxsxmdyjleigelwaya.supabase.co:5432
 PGSSL=true
 ```
 
-`DATABASE_URL` can be either the direct Supabase Postgres connection string or the Supabase pooler connection string. For this app, the direct connection string is simplest for smoke testing. The pooler is also acceptable if connection limits become relevant.
+`DATABASE_URL` can be either the direct Supabase Postgres connection string or the Supabase pooler connection string.
+
+For the Hermes/VPS runtime, use the Supabase transaction pooler:
+
+```text
+host: aws-1-eu-central-1.pooler.supabase.com
+port: 6543
+database: postgres
+user: postgres.dicxsxmdyjleigelwaya
+```
+
+The pooler is the preferred verified path for Hermes because direct DB reachability can fail from the VPS runtime.
 
 ## Smoke command
 
@@ -56,7 +67,7 @@ Equivalent direct command:
 PGSSL=true DATABASE_URL='postgresql://postgres:***@db.dicxsxmdyjleigelwaya.supabase.co:5432/postgres' npm run postgres:smoke
 ```
 
-Pooler style, if used later:
+Pooler style:
 
 ```bash
 PGSSL=true DATABASE_URL='postgresql://postgres.[project-ref]:***@[region].pooler.supabase.com:6543/postgres' npm run postgres:smoke
@@ -164,21 +175,21 @@ npx supabase@latest link --project-ref dicxsxmdyjleigelwaya
 
 GitHub may already be linked in the Supabase dashboard, but that does not authenticate this local CLI runtime.
 
-## Network status from this runtime
+## Network status
 
-DNS resolves for:
+The direct database host is:
 
 ```text
 db.dicxsxmdyjleigelwaya.supabase.co
 ```
 
-A TCP connection attempt to port `5432` failed from this runtime with:
+Direct DB connectivity can fail from some runtimes because of host/network reachability. For Hermes/VPS, use the transaction pooler instead:
 
 ```text
-OSError=[Errno 101] Network is unreachable
+aws-1-eu-central-1.pooler.supabase.com:6543
 ```
 
-That means the hosted smoke may also require this runtime to have outbound IPv6/DB network access or use a Supabase pooler/connection option reachable from here.
+The hosted app smoke has passed through the pooler with `PGSSL=true`.
 
 ## Supabase notes
 
@@ -201,11 +212,12 @@ DATABASE_URL='postgresql://...neon...'
 
 Run the same smoke test and expect the same result.
 
-## Current blockers
+## Current status
 
-- Supabase access token for CLI linking in this runtime.
-- Actual Supabase database password or `DATABASE_URL` for hosted Postgres smoke.
-- Possible outbound DB network reachability from this runtime to `db.dicxsxmdyjleigelwaya.supabase.co:5432`.
+- Supabase REST admin smoke passed through the gateway with `SUPABASE_ADMIN_SMOKE_OK`.
+- Hosted Postgres app smoke passed with `POSTGRES_STORE_SMOKE_OK`.
+- Supabase CLI linking remains optional and separate from app readiness. It still requires CLI auth if needed later.
+- Keep all database URLs, passwords, secret keys, and access tokens out of git and chat logs.
 
 ## Pilot rule
 
