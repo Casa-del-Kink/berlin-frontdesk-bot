@@ -1,16 +1,32 @@
-import { createClient } from "@supabase/supabase-js";
-
 function requiredEnv(name: string) {
   const value = process.env[name];
-  if (!value?.trim()) throw new Error(`${name} is required for Supabase admin client`);
-  return value;
+  if (!value?.trim()) throw new Error(`${name} is required for Supabase admin API client`);
+  return value.trim();
 }
 
-const supabaseUrl = requiredEnv("SUPABASE_URL");
-const serviceRoleKey = requiredEnv("SUPABASE_SERVICE_ROLE_KEY");
+export function supabaseUrl() {
+  return requiredEnv("SUPABASE_URL").replace(/\/$/, "");
+}
 
-// Server-only Supabase client. Never expose the service role key to browsers,
-// client-side bundles, public logs, or customer-visible tooling.
-export const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
-  auth: { persistSession: false, autoRefreshToken: false },
-});
+export function supabaseSecretKey() {
+  return requiredEnv("SUPABASE_SECRET_KEY");
+}
+
+export function supabaseRestUrl(path: string) {
+  const normalized = path.startsWith("/") ? path : `/${path}`;
+  return `${supabaseUrl()}/rest/v1${normalized}`;
+}
+
+export function supabaseAdminHeaders(extra?: Record<string, string>): Record<string, string> {
+  return {
+    apikey: supabaseSecretKey(),
+    ...extra,
+  };
+}
+
+export async function supabaseAdminFetch(path: string, init: Omit<RequestInit, "headers"> & { headers?: Record<string, string> } = {}) {
+  return fetch(supabaseRestUrl(path), {
+    ...init,
+    headers: supabaseAdminHeaders(init.headers),
+  });
+}

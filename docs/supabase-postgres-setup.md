@@ -96,41 +96,42 @@ call_outcomes
 
 Do not manually create tables unless debugging. The app owns its minimal schema for this pilot.
 
-## Supabase admin API client
+## Supabase admin REST API client
 
-For server-only Supabase API access, use the admin client wrapper:
-
-```ts
-import { supabaseAdmin } from "./supabase-admin.js";
-```
-
-It implements:
+For server-only Supabase API access, use the admin REST helper:
 
 ```ts
-import { createClient } from "@supabase/supabase-js";
-
-const supabaseUrl = process.env.SUPABASE_URL!;
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-
-export const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
-  auth: { persistSession: false, autoRefreshToken: false },
-});
+import { supabaseAdminFetch } from "./supabase-admin.js";
 ```
+
+It uses Supabase's current secret-key model for backend/admin tasks:
+
+- env: `SUPABASE_SECRET_KEY=***`
+- request header: `apikey: <SUPABASE_SECRET_KEY>`
+- no `Authorization: Bearer ***` header for the secret key
 
 Runtime env:
 
 ```bash
 SUPABASE_URL=https://dicxsxmdyjleigelwaya.supabase.co
-SUPABASE_SERVICE_ROLE_KEY='***'
+SUPABASE_SECRET_KEY='***'
 ```
 
 Smoke command:
 
 ```bash
-SUPABASE_URL='https://dicxsxmdyjleigelwaya.supabase.co' SUPABASE_SERVICE_ROLE_KEY='***' npm run supabase:admin:smoke
+SUPABASE_URL='https://dicxsxmdyjleigelwaya.supabase.co' SUPABASE_SECRET_KEY='***' npm run supabase:admin:smoke
 ```
 
-This checks that the service role key can query Supabase through the API. If the `leads` table does not exist yet, it reports `SUPABASE_ADMIN_SMOKE_OK_SCHEMA_PENDING`, because API auth worked but the direct Postgres migration smoke has not created the app schema yet.
+The smoke calls:
+
+```text
+GET /rest/v1/leads?select=id&limit=0
+apikey: <SUPABASE_SECRET_KEY>
+Prefer: count=exact
+```
+
+This checks that the secret key can query Supabase through the REST API. If the `leads` table does not exist yet, it reports `SUPABASE_ADMIN_SMOKE_OK_SCHEMA_PENDING`, because API auth worked but the direct Postgres migration smoke has not created the app schema yet.
 
 It does not replace the direct Postgres smoke below, which still verifies the app's Postgres backend, migrations, advisory locks, retention, and idempotency.
 

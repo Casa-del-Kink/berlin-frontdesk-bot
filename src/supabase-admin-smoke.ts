@@ -1,35 +1,47 @@
-type SupabaseError = {
+type SupabaseErrorPayload = {
   code?: string;
   message?: string;
+  hint?: string;
+  details?: string;
 };
 
-function isMissingTable(error: SupabaseError) {
+function isMissingTable(error: SupabaseErrorPayload) {
   return error.code === "PGRST205" || error.message?.includes("Could not find the table") || error.message?.includes("does not exist");
 }
 
+async function parseBody(res: Response) {
+  const text = await res.text();
+  if (!text) return undefined;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { message: text };
+  }
+}
+
 async function main() {
-  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    throw new Error("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required for npm run supabase:admin:smoke");
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SECRET_KEY) {
+    throw new Error("SUPABASE_URL and SUPABASE_SECRET_KEY are required for npm run supabase:admin:smoke");
   }
 
-  const { supabaseAdmin } = await import("./supabase-admin.js");
-  const { data, error, count } = await supabaseAdmin.from("leads").select("id", { count: "exact", head: true });
+  const { supabaseAdminFetch } = await import("./supabase-admin.js");
+  const res = await supabaseAdminFetch("/leads?select=id&limit=0", {
+    method: "GET",
+    headers: { prefer: "count=exact" },
+  });
+  const body = (await parseBody(res)) as SupabaseErrorPayload | undefined;
 
-  if (error) {
-    // A missing table means the service role key reached Supabase successfully, but the app's
-    // direct Postgres migration smoke has not created the schema yet. Treat that as admin auth OK
-    // and print a schema warning instead of failing the API credential check.
-    if (isMissingTable(error)) {
+  if (!res.ok) {
+    if (body && isMissingTable(body)) {
       console.log("SUPABASE_ADMIN_SMOKE_OK_SCHEMA_PENDING");
-      console.log(`schema_warning=${error.code ?? "unknown"} ${error.message}`);
+      console.log(`schema_warning=${body.code ?? "unknown"} ${body.message}`);
       return;
     }
-    throw new Error(`Supabase admin query failed: ${error.code ?? "unknown"} ${error.message}`);
+    throw new Error(`Supabase admin REST query failed: ${res.status} ${body?.code ?? "unknown"} ${body?.message ?? res.statusText}`);
   }
 
   console.log("SUPABASE_ADMIN_SMOKE_OK");
-  console.log(`leads_table_head=${JSON.stringify(data)}`);
-  console.log(`leads_table_count=${count ?? "unknown"}`);
+  console.log(`leads_table_count=${res.headers.get("content-range") ?? "unknown"}`);
 }
 
 main().catch((err) => {
