@@ -93,6 +93,9 @@ Once credentials are available:
 ```bash
 USE_FAKE_CALENDAR=false CLIENT_CONFIG_PATH=clients/salon-demo.yaml GOOGLE_SA_JSON='...' npm run google-calendar:smoke
 USE_FAKE_CALENDAR=false CLIENT_CONFIG_PATH=clients/salon-demo.yaml GOOGLE_SA_JSON='...' npm run live-calendar:smoke
+KEEP_SMOKE_EVENT=true USE_FAKE_CALENDAR=false CLIENT_CONFIG_PATH=clients/salon-demo.yaml GOOGLE_SA_JSON='...' npm run live-calendar:smoke
 ```
+
+Use `KEEP_SMOKE_EVENT=true` only when someone wants to inspect a visible event in the Tilda calendar. Default smoke mode cleans up after itself.
 
 If the smoke script does not exist yet, implement it before running the live calendar test.

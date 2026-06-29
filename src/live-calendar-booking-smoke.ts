@@ -20,7 +20,7 @@ function googleClient() {
   return google.calendar({ version: "v3", auth });
 }
 
-async function deleteCalendarEventByIdempotencyKey(calendarId: string, idempotencyKey: string) {
+async function listCalendarEventsByIdempotencyKey(calendarId: string, idempotencyKey: string) {
   const cal = googleClient();
   const listed = await cal.events.list({
     calendarId,
@@ -29,15 +29,25 @@ async function deleteCalendarEventByIdempotencyKey(calendarId: string, idempoten
     singleEvents: true,
     showDeleted: false,
   });
+  return listed.data.items ?? [];
+}
+
+async function deleteCalendarEventByIdempotencyKey(calendarId: string, idempotencyKey: string) {
+  const events = await listCalendarEventsByIdempotencyKey(calendarId, idempotencyKey);
 
   let deleted = 0;
-  for (const ev of listed.data.items ?? []) {
+  const cal = googleClient();
+  for (const ev of events) {
     if (!ev.id) continue;
     await cal.events.delete({ calendarId, eventId: ev.id });
     console.log(`deleted_event_id=${ev.id}`);
     deleted += 1;
   }
   return deleted;
+}
+
+function keepSmokeEvent() {
+  return process.env.KEEP_SMOKE_EVENT === "true";
 }
 
 async function main() {
@@ -88,13 +98,25 @@ async function main() {
     assert(replay.ok === true && replay.idempotentReplay === true, `Booking replay was not idempotent: ${JSON.stringify(replay)}`);
     console.log("idempotent_replay_ok=true");
 
+    const events = await listCalendarEventsByIdempotencyKey(cfg.calendarId, cleanupKey);
+    const visibleEvent = events[0];
+    assert(visibleEvent?.id, `Could not find booked smoke event in Google Calendar for ${cleanupKey}`);
+    console.log(`verified_event_id=${visibleEvent.id}`);
+    console.log(`verified_event_summary=${visibleEvent.summary}`);
+
+    if (keepSmokeEvent()) {
+      console.log(`kept_event_id=${visibleEvent.id}`);
+      console.log("LIVE_CALENDAR_BOOKING_SMOKE_OK_KEEP_EVENT");
+      return;
+    }
+
     const deleted = await deleteCalendarEventByIdempotencyKey(cfg.calendarId, cleanupKey);
     assert(deleted >= 1, `Expected to delete at least one smoke event for ${cleanupKey}`);
 
     await deleteSubjectData(phone);
     console.log("LIVE_CALENDAR_BOOKING_SMOKE_OK");
   } finally {
-    if (idempotencyKey) await deleteCalendarEventByIdempotencyKey(cfg.calendarId, idempotencyKey).catch(() => undefined);
+    if (!keepSmokeEvent() && idempotencyKey) await deleteCalendarEventByIdempotencyKey(cfg.calendarId, idempotencyKey).catch(() => undefined);
     await deleteSubjectData(phone).catch(() => undefined);
   }
 }
