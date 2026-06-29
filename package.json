@@ -8,7 +8,9 @@
     "dev": "tsx watch src/server.ts",
     "start": "tsx src/server.ts",
     "check": "tsx src/check.ts",
+    "style:guard": "python3 scripts/check-style-guard.py",
     "first-test:smoke": "tsx src/first-test.ts",
+    "google-calendar:smoke": "tsx src/google-calendar-smoke.ts",
     "postgres:smoke": "tsx src/postgres-store-smoke.ts",
     "server:battletest": "tsx src/server-battletest.ts",
     "typecheck": "tsc --noEmit"
