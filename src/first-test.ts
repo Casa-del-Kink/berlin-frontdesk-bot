@@ -34,6 +34,7 @@ function nextOpenSlot(cfg: Client, serviceName: string, findService: Loaded["fin
 async function main() {
   // Import after env setup so fake-calendar/state files are honored by modules with top-level config.
   const { loadClient, findService } = await import("./config.js");
+  const { getCalendarProvider } = await import("./calendar.js");
   const { runTool } = await import("./tools.js");
   const { addCallOutcome, addLead, addMessage, deleteSubjectData, exportSubjectData, metricsOn, purgeOldData } = await import("./store.js");
 
@@ -44,6 +45,7 @@ async function main() {
 
   console.log(`First-test smoke for ${cfg.name}`);
   console.log(`Mode: fake calendar (${process.env.FAKE_CALENDAR_FILE})`);
+  console.log(`Calendar provider: ${getCalendarProvider().name}`);
   console.log(`Service: ${service.name}`);
   console.log(`Candidate start: ${start.toISO()}`);
 
@@ -157,6 +159,7 @@ async function main() {
   console.log("retention_dry_run=", JSON.stringify(retentionDryRun));
   console.log("retention_actual=", JSON.stringify(retentionActual));
 
+  if (getCalendarProvider().name !== "fake") throw new Error("Expected first-test smoke to use fake calendar provider");
   if (!(booking as any).ok) throw new Error("Expected booking to succeed");
   if (!(idempotentReplay as any).ok || !(idempotentReplay as any).idempotentReplay) {
     throw new Error("Expected same booking retry to return an idempotent replay");

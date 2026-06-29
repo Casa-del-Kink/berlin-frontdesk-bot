@@ -8,7 +8,7 @@ This repo still defaults to the credential-free JSON store because it is useful 
 - `book_appointment` treats a same customer/service/start retry as an idempotent replay instead of creating a second lead or owner alert.
 - Calendar events store the idempotency key in `extendedProperties.private.idempotencyKey` for Google Calendar and in the fake calendar fixture for tests.
 - `withBookingLock()` serializes booking critical sections in the current Node process.
-- The fake/Google calendar boundary now exposes provider helpers (`findEventByIdempotencyKey`, `findMatchingEvent`, `getBusy`, `createEvent`) instead of embedding provider details in tools.
+- The fake/Google calendar boundary now uses a formal `CalendarProvider` seam (`findEventByIdempotencyKey`, `findMatchingEvent`, `getBusy`, `createEvent`) instead of embedding provider details in tools.
 
 ## Postgres migration contract
 

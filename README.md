@@ -14,7 +14,7 @@ WhatsApp (Twilio)  ──>  src/server.ts  (webhook)
                           │
                           ├─ src/llm.ts      AI loop (OpenRouter) + tool use
                           ├─ src/tools.ts    check_availability / book_appointment / register_lead
-                          ├─ src/calendar.ts Google Calendar (freebusy + create event)
+                          ├─ src/calendar.ts Calendar provider seam (fake + Google)
                           ├─ src/slots.ts    free-slot computation (pure, tested)
                           ├─ src/store.ts    leads + conversations (atomic JSON)
                           ├─ src/prompt.ts   system prompt built from the YAML
@@ -103,6 +103,8 @@ clients/salon-demo.yaml  ← one business = one file. Adapt = copy and edit.
 - `book_appointment` re-checks the requested interval inside an in-process booking lock before
   creating the event. Same customer/service/start retries are idempotent; different customers are
   still rejected by the double-booking guard.
+- Calendar access is behind a `CalendarProvider` seam with fake and Google implementations, so
+  future provider swaps should stay isolated in `calendar.ts`.
 - `ownerWhatsapp` empty → owner alerts print to the console (DRYRUN).
 - Data in `data/state.json` by default, written atomically. For production volume or multiple
   server instances, swap to Postgres before paid pilot; see `docs/production-data-readiness.md`.
