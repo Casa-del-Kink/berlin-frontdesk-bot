@@ -106,10 +106,10 @@ Draft-only planning notes; validate with lawyer/Datenschutz review before real c
 - Ensure provider DPAs/AVVs are in place for Twilio/ElevenLabs/transcription/calendar vendors before production.
 - Use `docs/compliance-live-pilot-pack.md` as the launch checklist for exact disclosure text, privacy contact, AVV/DPA register, and retention decisions.
 
-## Daytime review before enabling phone
+## Daytime review before pilot phone answering
 
-1. Decide whether phone MVP is after-hours only, overflow only, or always-on.
+1. Decide whether pilot phone answering is after-hours only, overflow/no-answer only, or always-on.
 2. Pick provider path: ElevenLabs conversational agent + Twilio number forwarding, or Twilio Voice + custom media stream.
 3. Approve exact German disclosure/recording wording.
 4. Decide retention for call summaries/transcripts/recordings.
-5. Decide whether phone bookings should confirm by WhatsApp/SMS after call.
+5. Decide whether phone bookings should confirm by WhatsApp after call. SMS is out of scope for the pilot.

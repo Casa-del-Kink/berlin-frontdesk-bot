@@ -4,12 +4,13 @@
 
 ## Scope and default position
 
-Tilda Front Desk acts as a digital front-of-house for appointment-heavy businesses. For the first salon pilot, keep the processing narrow:
+Tilda Front Desk acts as a full-suite digital front-of-house for appointment-heavy businesses. The first salon pilot/MVP includes phone answering and WhatsApp/messages from day one; phone is not a later phase or optional compliance appendix. Keep the processing narrow:
 
-- Answer appointment/service questions over WhatsApp and/or phone.
+- Answer appointment/service questions over phone and WhatsApp/messages.
 - Check availability and book or capture a follow-up lead.
 - Alert the owner/operator when a human must take over.
 - Store only the data needed to handle the appointment request, prove recovered value, and support export/delete/retention operations.
+- Exclude SMS from the first pilot unless Michael/Roxu explicitly change scope later.
 
 Avoid medical/dental/health triage, special-category data, automated decisions with legal/significant effects, or raw call transcript storage unless separately reviewed.
 
@@ -30,10 +31,12 @@ Use this checklist before connecting live customers.
 ### Vendor / processor setup
 
 - [ ] Hosting provider reviewed.
-- [ ] WhatsApp/SMS/phone provider reviewed (Twilio/360dialog/etc.).
+- [ ] Telephony/phone transport provider reviewed (Twilio Voice/Sipgate/Vonage/Telnyx/Plivo/etc.).
+- [ ] Voice AI provider reviewed for the pilot phone-answering path (ElevenLabs primary if selected; alternatives include Retell, Vapi, Bland, OpenAI Realtime, Twilio-native voice flows).
+- [ ] WhatsApp/messaging provider reviewed (Twilio WhatsApp/Meta BSP/360dialog/etc.).
 - [ ] LLM provider reviewed (OpenRouter/model provider or alternative).
 - [ ] Calendar provider reviewed (Google Calendar or alternative).
-- [ ] Voice/transcription provider reviewed if phone is enabled (ElevenLabs/Twilio/etc.).
+- [ ] Recording/transcription provider reviewed if any recording/transcription is enabled.
 - [ ] AVV/DPA or equivalent processor terms collected for every production vendor.
 - [ ] Subprocessor list prepared for the client contract/privacy notice.
 - [ ] Cross-border transfer mechanism reviewed where vendors/processors are outside the EU/EEA.
@@ -62,25 +65,25 @@ Use this checklist before connecting live customers.
 
 Use these as draft text. Keep the wording short and natural in the channel.
 
-### WhatsApp first message — German
+### WhatsApp first message - German
 
-> Hallo, ich bin der digitale Assistent von {{businessName}}. Ich helfe dir bei Fragen und Terminen. Wenn etwas unklar ist oder du mit einem Menschen sprechen möchtest, gebe ich es ans Team weiter.
+> Hallo, hier ist Tilda von {{businessName}}. Ich helfe dir gern mit Terminen und Fragen. Wenn etwas unklar ist oder du mit dem Team sprechen möchtest, gebe ich es direkt weiter.
 
-### WhatsApp first message — English
+### WhatsApp first message - English
 
-> Hi, I’m the digital assistant for {{businessName}}. I can help with questions and appointments. If anything is unclear or you want a person, I’ll pass it to the team.
+> Hi, this is Tilda from {{businessName}}. I can help with appointments and questions. If anything needs the team, I will pass it on.
 
-### Phone opening — German, no recording/transcription
+### Phone opening - German, no recording/transcription
 
-> Hallo, hier ist der digitale Assistent von {{businessName}}. Ich helfe bei Terminanfragen und kann dein Anliegen ans Team weitergeben, wenn nötig.
+> Hallo, hier ist Tilda von {{businessName}}. Ich helfe dir gern mit Terminen und Fragen.
 
-### Phone opening — English, no recording/transcription
+### Phone opening - English, no recording/transcription
 
-> Hi, this is the digital assistant for {{businessName}}. I can help with appointment requests and pass things to the team if needed.
+> Hi, this is Tilda from {{businessName}}. I can help with appointments and questions.
 
-### Phone opening — German, with recording/transcription
+### Phone opening - German, with recording/transcription
 
-> Hallo, hier ist der digitale Assistent von {{businessName}}. Ich kann dir bei Terminanfragen helfen. Damit das Team deine Anfrage bearbeiten kann, kann dieser Anruf zusammengefasst oder transkribiert werden. Bist du damit einverstanden?
+> Hallo, hier ist Tilda von {{businessName}}. Ich helfe dir gern mit Terminen und Fragen. Damit das Team deine Anfrage bearbeiten kann, kann dieser Anruf zusammengefasst oder transkribiert werden. Bist du damit einverstanden?
 
 Only continue recording/transcription after an affirmative answer. If the caller refuses, route to a non-recorded handoff path or human callback.
 
@@ -115,10 +118,12 @@ Maintain one row per production vendor.
 | Vendor | Role | Data categories | Region / transfer note | AVV/DPA status | Retention / deletion note | Owner |
 |---|---|---|---|---|---|---|
 | Hosting provider | App hosting / logs | Config, logs, customer request metadata | TBD | TODO | Log retention TBD | Tilda/operator |
-| Twilio or WhatsApp BSP | Messaging/phone transport | Phone numbers, message/call metadata, content depending on channel | TBD | TODO | Provider retention TBD | Tilda/operator |
+| Twilio Voice / telephony provider | Phone number, forwarding, call routing, call webhooks | Caller/callee numbers, call metadata, routing events, audio only if configured | TBD | TODO | Prefer forwarding/no-port pilot; provider retention TBD | Tilda/operator |
+| ElevenLabs / voice AI provider | Phone-answering agent, speech generation, possible transcription/summary | Caller audio during live session, transcript/summary depending on settings, tool-call context | TBD | TODO | Review EU data residency/zero-retention options; prefer no raw recording storage for first pilot | Tilda/operator |
+| Retell / Vapi / Bland / OpenAI Realtime / Twilio-native voice alternative | Backup/alternative voice-agent stack if ElevenLabs is not selected | Caller audio, transcript/summary, phone metadata depending on product | TBD | TODO | Pick one primary before pilot; do not keep unused vendors in production flow | Tilda/operator |
+| Twilio WhatsApp / Meta BSP / 360dialog | WhatsApp/message transport | Phone numbers, message metadata, message content | TBD | TODO | Provider retention TBD | Tilda/operator |
 | OpenRouter / LLM provider | AI response generation | Prompt/context needed for replies | TBD | TODO | Disable training if applicable; review provider terms | Tilda/operator |
 | Google Calendar | Booking source of truth | Appointment name/service/time, calendar metadata | TBD | TODO | Calendar retention follows client calendar policy | Client/Tilda |
-| ElevenLabs / voice provider | Voice agent/transcription if enabled | Caller audio/transcript/summary depending on settings | TBD | TODO | Prefer no raw recording/transcript storage for first pilot | Tilda/operator |
 
 ## Data minimization defaults
 
@@ -175,8 +180,9 @@ For the current first-pilot scope, treat the bot as a transparent customer-servi
 ## Daytime review decisions
 
 1. Approve final German/English AI disclosure wording.
-2. Decide whether phone recording/transcription is disabled, opt-in only, or not used at all for first pilot.
-3. Pick retention period for messages, leads, call summaries, transcripts, and recordings.
-4. Confirm who is privacy contact for the pilot: client, Tilda, or shared mailbox.
-5. Confirm subprocessor/vendor list and AVV/DPA status before production traffic.
-6. Confirm whether autonomous booking is allowed or owner confirmation is required for the first client.
+2. Pick the first-pilot phone stack: ElevenLabs + telephony provider, or one named alternative.
+3. Decide whether phone recording/transcription is disabled, opt-in only, or not used at all for first pilot.
+4. Pick retention period for messages, leads, call summaries, transcripts, and recordings.
+5. Confirm who is privacy contact for the pilot: client, Tilda, or shared mailbox.
+6. Confirm subprocessor/vendor list and AVV/DPA status before production traffic.
+7. Confirm whether autonomous booking is allowed or owner confirmation is required for the first client.
