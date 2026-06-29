@@ -160,6 +160,17 @@ npm run server:battletest
 
 ## Live-provider command targets
 
+Credential-safe runbook:
+
+```bash
+npm run deployment:preflight
+npm run google-calendar:smoke
+npm run live-calendar:smoke
+```
+
+See `docs/live-provider-demo.md` for exact env, cleanup mode, and visible-proof mode. Calendar smokes clean up by default. Add `KEEP_SMOKE_EVENT=true` only when a human needs to inspect the event in the Tilda dev calendar.
+
+Do not paste credentials into docs or commit them. Use shell env or the deployment secret store.
 Google Calendar once credentials exist:
 
 ```bash

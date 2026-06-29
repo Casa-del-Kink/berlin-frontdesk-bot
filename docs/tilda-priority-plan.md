@@ -257,13 +257,14 @@ Tasks:
 - Create `docs/demo-script-hair-salon.md`.
 - Create or update one demo client YAML that is realistic for Berlin hair salons.
 - Add scripts or commands to run the full fake-provider demo locally. Done via `npm run demo:fake`.
-- Add commands for live-provider demo once credentials exist.
+- Add commands for live-provider demo once credentials exist. Done in `docs/live-provider-demo.md` with cleanup and visible-proof modes.
 - Ensure all demo copy follows `docs/tilda-voice-style.md`.
 
 Acceptance criteria:
 
 - A reviewer can run the fake-provider demo without external credentials via `npm run demo:fake`.
 - A reviewer can see exactly what credentials are needed for the live demo.
+- A reviewer can keep a marked smoke event visible with `KEEP_SMOKE_EVENT=true` and avoid mistaking cleanup for failure.
 - Demo output proves booking, follow-up, WhatsApp continuation, owner alert, metrics, and privacy export.
 - The customer-facing language is short, human, and free of AI slop.
 
@@ -311,11 +312,13 @@ Tasks:
 - Confirm secrets storage approach.
 - Confirm logs avoid unnecessary PII.
 - Add basic monitoring plan.
+- Add `npm run deployment:preflight` for machine-readable deployment blockers and review-only output.
 
 Acceptance criteria:
 
 - A fresh deploy has a clear env checklist.
 - Readiness endpoint reports blockers before live traffic.
+- `npm run deployment:preflight` fails on unresolved live blockers unless `ALLOW_DEPLOYMENT_BLOCKERS=true` is explicitly set for review.
 - Fake providers are disabled for live booking.
 - Postgres backend is used for live pilot.
 - Webhook signature validation is enabled for live Twilio webhooks.
@@ -333,7 +336,8 @@ If no new credentials are available, implement these in order:
 7. Tighten owner-alert assertions for voice booking and follow-up paths. Done.
 8. Add voice-facing HTTP smoke coverage for missing or wrong bearer auth on server tool, post-call, and metrics endpoints. Done.
 9. Build the full fake-provider hair-salon demo runner. Done via `npm run demo:fake`.
-10. Next credential-free chunk: add live-provider demo command documentation that stays credential-safe, or add visible-proof mode for the dev Google Calendar smoke.
+10. Add live-provider demo command documentation that stays credential-safe and visible-proof mode for the dev Google Calendar smoke. Done via `docs/live-provider-demo.md` and `KEEP_SMOKE_EVENT=true` in `google-calendar:smoke`.
+11. Add deployment readiness pack and preflight. Done via `docs/deployment-readiness.md` and `npm run deployment:preflight`.
 
 P2 is no longer an infrastructure blocker. Re-run the Supabase Postgres smoke only after schema/backend changes or when moving the runtime to a new host.
 

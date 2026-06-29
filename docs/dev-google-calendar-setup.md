@@ -98,4 +98,12 @@ KEEP_SMOKE_EVENT=true USE_FAKE_CALENDAR=false CLIENT_CONFIG_PATH=clients/salon-d
 
 Use `KEEP_SMOKE_EVENT=true` only when someone wants to inspect a visible event in the Tilda calendar. Default smoke mode cleans up after itself.
 
-If the smoke script does not exist yet, implement it before running the live calendar test.
+Visible-proof markers:
+
+```text
+GOOGLE_CALENDAR_SMOKE_OK_KEEP_EVENT
+LIVE_CALENDAR_BOOKING_SMOKE_OK_KEEP_EVENT
+kept_event_id=...
+```
+
+If the calendar UI looks empty after a passing default smoke, check the output for `deleted_event_id=...` before diagnosing a calendar failure.

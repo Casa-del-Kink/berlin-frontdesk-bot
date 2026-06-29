@@ -16,6 +16,10 @@ function googleClient() {
   return google.calendar({ version: "v3", auth });
 }
 
+function keepSmokeEvent() {
+  return process.env.KEEP_SMOKE_EVENT === "true";
+}
+
 async function main() {
   if (process.env.USE_FAKE_CALENDAR === "true") {
     throw new Error("google-calendar:smoke must run against Google Calendar. Do not set USE_FAKE_CALENDAR=true.");
@@ -58,7 +62,9 @@ async function main() {
   const eventId = inserted.data.id;
   if (!eventId) throw new Error("Google Calendar insert succeeded but returned no event id.");
   console.log(`created_event_id=${eventId}`);
+  if (inserted.data.htmlLink) console.log(`created_event_link=${inserted.data.htmlLink}`);
 
+  let shouldCleanup = !keepSmokeEvent();
   try {
     const listed = await cal.events.list({
       calendarId: cfg.calendarId,
@@ -69,9 +75,19 @@ async function main() {
     const found = listed.data.items?.[0];
     if (!found?.id) throw new Error("Could not find the inserted smoke event by private extended property.");
     console.log(`found_event_id=${found.id}`);
+    if (found.htmlLink) console.log(`found_event_link=${found.htmlLink}`);
+
+    if (keepSmokeEvent()) {
+      shouldCleanup = false;
+      console.log(`kept_event_id=${found.id}`);
+      console.log("GOOGLE_CALENDAR_SMOKE_OK_KEEP_EVENT");
+      return;
+    }
   } finally {
-    await cal.events.delete({ calendarId: cfg.calendarId, eventId });
-    console.log(`deleted_event_id=${eventId}`);
+    if (shouldCleanup) {
+      await cal.events.delete({ calendarId: cfg.calendarId, eventId });
+      console.log(`deleted_event_id=${eventId}`);
+    }
   }
 
   const after = await cal.events.list({
