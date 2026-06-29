@@ -115,7 +115,7 @@ Tasks:
 Blocked on:
 
 - dev Gmail account exists
-- Tilda calendar ID
+- Tilda calendar ID configured in `clients/salon-demo.yaml`: `ec639255e6fd2473e4ea2e1af60b996dab2f5df5fa5422047fff337ccc523938@group.calendar.google.com`
 - service account JSON in `GOOGLE_SA_JSON`
 - calendar shared with service account with event edit permissions
 
