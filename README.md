@@ -16,7 +16,7 @@ WhatsApp (Twilio)  ──>  src/server.ts  (webhook)
                           ├─ src/tools.ts    check_availability / book_appointment / register_lead
                           ├─ src/calendar.ts Calendar provider seam (fake + Google)
                           ├─ src/slots.ts    free-slot computation (pure, tested)
-                          ├─ src/store.ts    store backend seam (atomic JSON now, Postgres next)
+                          ├─ src/store.ts    store backend seam (atomic JSON + Postgres)
                           ├─ src/prompt.ts   system prompt built from the YAML
                           └─ src/whatsapp.ts sending (Twilio; swap to 360dialog/Meta here)
 
@@ -108,8 +108,11 @@ clients/salon-demo.yaml  ← one business = one file. Adapt = copy and edit.
   future provider swaps should stay isolated in `calendar.ts`.
 - `ownerWhatsapp` empty → owner alerts print to the console (DRYRUN).
 - Data in `data/state.json` by default, written atomically behind a `StoreBackend` seam.
-  `STORE_BACKEND=json` is the only implemented backend in this build; for production volume or
-  multiple server instances, add the Postgres backend before paid pilot; see
+  Use `STORE_BACKEND=json` for local demos/tests. Use `STORE_BACKEND=postgres` plus `DATABASE_URL`
+  or `POSTGRES_URL` for production volume or multiple server instances. The Postgres backend
+  creates its tables/indexes on startup, preserves idempotent booking/lead/call retries, supports
+  export/delete/retention operations, and uses Postgres advisory locks for booking critical sections.
+  Run `npm run postgres:smoke` with a test `DATABASE_URL` before enabling it for a pilot; see
   `docs/production-data-readiness.md`.
 - For production with clinics (health data) → swap Twilio for **360dialog** (German BSP,
   DPA/GDPR) by touching only `whatsapp.ts`.

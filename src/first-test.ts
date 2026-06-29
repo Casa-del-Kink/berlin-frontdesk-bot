@@ -107,13 +107,13 @@ async function main() {
   console.log("availability_after=", JSON.stringify(availabilityAfter));
 
   const today = DateTime.now().setZone(cfg.timezone).toISODate()!;
-  const metrics = metricsOn(today, cfg.timezone);
+  const metrics = await metricsOn(today, cfg.timezone);
   console.log("metrics_today=", JSON.stringify(metrics));
 
   const privacyPhone = "whatsapp:+491****2222";
-  addMessage(privacyPhone, "user", "Bitte exportiere meine Daten.");
-  addMessage(privacyPhone, "assistant", "Ich gebe das an das Team weiter.");
-  addLead({
+  await addMessage(privacyPhone, "user", "Bitte exportiere meine Daten.");
+  await addMessage(privacyPhone, "assistant", "Ich gebe das an das Team weiter.");
+  await addLead({
     phone: privacyPhone,
     name: "Privacy Test",
     service: service.name,
@@ -123,21 +123,21 @@ async function main() {
     estimatedValueCents: 0,
     createdAt: "2020-01-01T10:00:00.000+01:00",
   });
-  addCallOutcome({
+  await addCallOutcome({
     callId: "privacy-call-test",
     phone: privacyPhone,
     status: "voicemail",
     summary: "Caller asked for data deletion.",
     createdAt: "2020-01-01T10:05:00.000+01:00",
   });
-  const exported = exportSubjectData(privacyPhone);
+  const exported = await exportSubjectData(privacyPhone);
   console.log("privacy_export=", JSON.stringify(exported));
-  const deleted = deleteSubjectData(privacyPhone);
-  const afterDelete = exportSubjectData(privacyPhone);
+  const deleted = await deleteSubjectData(privacyPhone);
+  const afterDelete = await exportSubjectData(privacyPhone);
   console.log("privacy_delete=", JSON.stringify(deleted));
 
   const retentionPhone = "whatsapp:+491****4444";
-  addLead({
+  await addLead({
     phone: retentionPhone,
     name: "Retention Test",
     service: service.name,
@@ -147,16 +147,16 @@ async function main() {
     estimatedValueCents: 0,
     createdAt: "2020-01-02T10:00:00.000+01:00",
   });
-  addCallOutcome({
+  await addCallOutcome({
     callId: "retention-call-test",
     phone: retentionPhone,
     status: "voicemail",
     summary: "Old call should be purged by retention helper.",
     createdAt: "2020-01-02T10:05:00.000+01:00",
   });
-  const retentionDryRun = purgeOldData(30, true);
-  const retentionActual = purgeOldData(30, false);
-  const retentionAfter = exportSubjectData(retentionPhone);
+  const retentionDryRun = await purgeOldData(30, true);
+  const retentionActual = await purgeOldData(30, false);
+  const retentionAfter = await exportSubjectData(retentionPhone);
   console.log("retention_dry_run=", JSON.stringify(retentionDryRun));
   console.log("retention_actual=", JSON.stringify(retentionActual));
 

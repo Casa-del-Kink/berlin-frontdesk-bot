@@ -146,7 +146,7 @@ export function makeHandlers(cfg: Client, phone: string): Record<string, Handler
       const lockKey = `calendar:${cfg.calendarId}:${startDt.toUTC().toISO()}:${end.toUTC().toISO()}`;
 
       return withBookingLock(lockKey, async () => {
-        const existing = leadByIdempotencyKey(idempotencyKey) ?? bookedLead(phone, serviceName, startDt.toISO()!);
+        const existing = (await leadByIdempotencyKey(idempotencyKey)) ?? (await bookedLead(phone, serviceName, startDt.toISO()!));
         if (existing) {
           return {
             ok: true,
@@ -193,7 +193,7 @@ export function makeHandlers(cfg: Client, phone: string): Record<string, Handler
           idempotencyKey,
         });
 
-        const stored = addLead({
+        const stored = await addLead({
           phone,
           name,
           service: serviceName,
@@ -229,7 +229,7 @@ export function makeHandlers(cfg: Client, phone: string): Record<string, Handler
       const sourceChannel = normalizedChannel(channel, phone.startsWith("whatsapp:") ? "whatsapp" : "server_tool");
       const serviceName = svc?.name ?? service;
       const stableKey = leadIdempotencyKey(phone, serviceName, notes, idempotencyKey);
-      const stored = addLead({
+      const stored = await addLead({
         phone,
         name,
         service: serviceName,

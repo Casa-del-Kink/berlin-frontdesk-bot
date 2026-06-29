@@ -40,14 +40,14 @@ function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
 }
 
-function assertUnsupportedStoreBackendFails() {
+function assertPostgresBackendRequiresDatabaseUrl() {
   const result = spawnSync(process.execPath, ["./node_modules/.bin/tsx", "-e", "import('./src/store.ts')"], {
-    env: { ...process.env, STORE_BACKEND: "postgres", STATE_FILE: "data/unsupported-store-test.json" },
+    env: { ...process.env, STORE_BACKEND: "postgres", DATABASE_URL: "", POSTGRES_URL: "", STATE_FILE: "data/postgres-missing-url-test.json" },
     encoding: "utf8",
   });
   const combined = `${result.stdout ?? ""}${result.stderr ?? ""}`;
-  assert(result.status !== 0, "unsupported STORE_BACKEND should fail fast instead of silently using JSON");
-  assert(combined.includes("STORE_BACKEND=postgres is not implemented"), `unexpected unsupported backend error: ${combined}`);
+  assert(result.status !== 0, "STORE_BACKEND=postgres should fail fast when DATABASE_URL is missing");
+  assert(combined.includes("STORE_BACKEND=postgres requires DATABASE_URL"), `unexpected missing database URL error: ${combined}`);
 }
 
 async function waitForHealth() {
@@ -69,7 +69,7 @@ async function waitForHealth() {
 async function main() {
   removeIfExists(STATE_FILE);
   removeIfExists(CALENDAR_FILE);
-  assertUnsupportedStoreBackendFails();
+  assertPostgresBackendRequiresDatabaseUrl();
 
   const child = spawn(process.execPath, ["./node_modules/.bin/tsx", "src/server.ts"], {
     env: {

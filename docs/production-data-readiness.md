@@ -1,28 +1,28 @@
 # Production data readiness
 
-This repo still defaults to the credential-free JSON store because it is useful for demos, smoke tests, and local battletests. Before the first paid live pilot, move the same seams to Postgres so retries and concurrent workers are safe.
+This repo still defaults to the credential-free JSON store because it is useful for demos, smoke tests, and local battletests. For paid live pilots or multiple workers, set `STORE_BACKEND=postgres` and provide `DATABASE_URL` or `POSTGRES_URL` so retries and concurrent workers are safe.
 
 ## What is already in code
 
 - `Lead.idempotencyKey` records stable booking retry keys.
 - `book_appointment` treats a same customer/service/start retry as an idempotent replay instead of creating a second lead or owner alert.
 - Calendar events store the idempotency key in `extendedProperties.private.idempotencyKey` for Google Calendar and in the fake calendar fixture for tests.
-- `withBookingLock()` serializes booking critical sections in the current Node process.
-- The fake/Google calendar boundary now uses a formal `CalendarProvider` seam (`findEventByIdempotencyKey`, `findMatchingEvent`, `getBusy`, `createEvent`) instead of embedding provider details in tools.
-- Persistence now uses a formal `StoreBackend` seam with a JSON implementation and a fail-fast guard for unsupported `STORE_BACKEND` values, so setting `STORE_BACKEND=postgres` cannot silently keep using JSON.
+- `withBookingLock()` serializes booking critical sections. JSON uses an in-process lock; Postgres uses a transaction-level advisory lock shared across bot workers.
+- The fake/Google calendar boundary uses a formal `CalendarProvider` seam (`findEventByIdempotencyKey`, `findMatchingEvent`, `getBusy`, `createEvent`) instead of embedding provider details in tools.
+- Persistence uses a formal `StoreBackend` seam with JSON and Postgres implementations. `STORE_BACKEND=postgres` fails fast unless `DATABASE_URL` or `POSTGRES_URL` is set, then creates the required tables/indexes at startup.
 
-## Postgres migration contract
+## Postgres backend contract
 
-For a multi-worker paid pilot, add a Postgres-backed `StoreBackend` implementation that preserves the exported store API:
+The Postgres-backed `StoreBackend` preserves the exported store API:
 
 - `addMessage(phone, role, content)` with capped per-phone history and `created_at` timestamps for retention.
-- `addLead(lead)` with a unique constraint on `idempotency_key` when present. Use it for both confirmed bookings and follow-up leads so server-tool/provider retries do not duplicate operator work.
+- `addLead(lead)` with a unique partial index on `idempotency_key` when present. Use it for both confirmed bookings and follow-up leads so server-tool/provider retries do not duplicate operator work.
 - `leadByIdempotencyKey(idempotencyKey)` and `bookedLead(phone, service, startISO)` for safe retries.
-- `addCallOutcome(outcome)` with a unique `call_id` when provider IDs are available, returning an idempotent replay on duplicate provider retries.
+- `addCallOutcome(outcome)` with primary-key `call_id`, returning an idempotent replay on duplicate provider retries.
 - `metricsOn(dateISO, tz)`, `exportSubjectData(phone)`, `deleteSubjectData(phone)`, and `purgeOldData(maxAgeDays, dryRun)`.
-- `withBookingLock(key, fn)` backed by a transaction-level lock, e.g. `pg_advisory_xact_lock(hashtext(key))`, or a `booking_locks` table with `SELECT ... FOR UPDATE`.
+- `withBookingLock(key, fn)` backed by transaction-level `pg_advisory_xact_lock(hashtext(key))` so multiple bot workers share booking critical-section locks.
 
-Suggested tables:
+Tables/indexes are created on startup by `src/store.ts`:
 
 ```sql
 create table conversations (
@@ -41,15 +41,17 @@ create table leads (
   status text not null check (status in ('booked', 'needs_followup')),
   channel text not null default 'unknown',
   notes text,
-  start_at timestamptz,
+  start_iso text,
+  start_utc timestamptz generated always as (
+    case when start_iso is null then null else start_iso::timestamptz end
+  ) stored,
   estimated_value_cents integer,
-  idempotency_key text unique,
+  idempotency_key text,
   created_at timestamptz not null default now()
 );
 
 create table call_outcomes (
-  id bigserial primary key,
-  call_id text unique,
+  call_id text primary key,
   phone text not null,
   status text not null,
   summary text,
@@ -57,7 +59,19 @@ create table call_outcomes (
   recording_url text,
   created_at timestamptz not null default now()
 );
+
+create unique index leads_idempotency_key_uidx on leads (idempotency_key) where idempotency_key is not null;
 ```
+
+## Smoke test
+
+Run against a throwaway database before enabling Postgres for a pilot:
+
+```bash
+DATABASE_URL=postgres://user:***@localhost:5432/berlin_frontdesk_test npm run postgres:smoke
+```
+
+Expected result: `POSTGRES_STORE_SMOKE_OK`. The smoke covers schema creation, capped conversation history, lead idempotency, booked-lead lookup, call-outcome idempotency, advisory-lock execution, metrics, export/delete, and retention purge.
 
 ## Pilot gate
 
