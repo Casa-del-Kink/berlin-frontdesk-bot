@@ -26,8 +26,10 @@ CHECK_FILES = [
     "docs/tilda-voice-style.md",
     "docs/voice-phone-readiness.md",
     "src/deployment-preflight.ts",
+    "src/deployment-smoke.ts",
     "src/fake-provider-demo.ts",
     "src/prompt.ts",
+    "src/readiness.ts",
 ]
 
 BANNED_LITERAL = [

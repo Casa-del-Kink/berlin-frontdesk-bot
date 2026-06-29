@@ -19,6 +19,7 @@
     "voice:smoke": "tsx src/voice-agent-tool-smoke.ts",
     "demo:fake": "tsx src/fake-provider-demo.ts",
     "deployment:preflight": "tsx src/deployment-preflight.ts",
+    "deployment:smoke": "tsx src/deployment-smoke.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

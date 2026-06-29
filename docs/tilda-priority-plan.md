@@ -313,13 +313,19 @@ Tasks:
 - Confirm logs avoid unnecessary PII.
 - Gate live readiness on a real owner alert destination, with an explicit log-only escape hatch for internal hosted demos.
 - Add basic monitoring plan.
-- Add `npm run deployment:preflight` for machine-readable deployment blockers and review-only output.
+- Add `npm run deployment:preflight` for machine-readable deployment blockers and review-only output. Done.
+- Share the same deployment checks between CLI preflight, protected readiness endpoint, and strict live-startup gate. Done via `src/readiness.ts`.
+- Add battletest coverage for readiness `401`/`409` responses and strict startup refusal when blockers remain. Done.
+- Add `npm run deployment:smoke` for a local hosted-demo handoff smoke that starts the real server, checks health/readiness/metrics, and proves strict startup blocks unsafe env. Done.
 
 Acceptance criteria:
 
 - A fresh deploy has a clear env checklist.
 - Readiness endpoint reports blockers before live traffic.
 - `npm run deployment:preflight` fails on unresolved live blockers unless `ALLOW_DEPLOYMENT_BLOCKERS=true` is explicitly set for review.
+- `/readiness/live-pilot` and `npm run deployment:preflight` report the same blocker/warning model.
+- `REQUIRE_LIVE_PILOT_READINESS=true` refuses server startup while deployment blockers remain.
+- `npm run deployment:smoke` starts the real server with safe fake fixtures and verifies health, protected readiness, blocker status, protected metrics, and strict-startup failure without paid provider traffic.
 - Fake providers are disabled for live booking.
 - Postgres backend is used for live pilot.
 - Webhook signature validation is enabled for live Twilio webhooks.
@@ -341,6 +347,9 @@ If no new credentials are available, implement these in order:
 10. Add live-provider demo command documentation that stays credential-safe and visible-proof mode for the dev Google Calendar smoke. Done via `docs/live-provider-demo.md` and `KEEP_SMOKE_EVENT=true` in `google-calendar:smoke`.
 11. Add deployment readiness pack and preflight. Done via `docs/deployment-readiness.md` and `npm run deployment:preflight`.
 12. Add owner-alert destination readiness gate, including `OWNER_ALERT_LOG_ONLY_ACCEPTED=true` for internal hosted demos only. Done.
+13. Align readiness/preflight/strict startup on one deployment gate model. Done via `src/readiness.ts`, `/readiness/live-pilot`, and `REQUIRE_LIVE_PILOT_READINESS=true` battletest coverage.
+14. Add deployment smoke for hosted-demo handoff. Done via `npm run deployment:smoke`.
+15. Next credential-free chunk: add operator-facing failure triage and live-demo checklist automation, or add hosted-env examples for the chosen deployment target.
 
 P2 is no longer an infrastructure blocker. Re-run the Supabase Postgres smoke only after schema/backend changes or when moving the runtime to a new host.
 

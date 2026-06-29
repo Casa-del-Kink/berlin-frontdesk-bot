@@ -165,3 +165,37 @@
   - Deployment docs now distinguish internal demo log-only alerts from a real client pilot owner alert destination.
 - Blocker: real owner WhatsApp routing is still not configured in `clients/salon-demo.yaml`; this is acceptable for fake/local demos but remains a live-pilot blocker unless explicitly accepted for an internal hosted demo.
 - Next chunk: add a small operator alert routing doc/checklist for Twilio sandbox versus live WhatsApp owner delivery, or run live provider smoke only if approved credentials are available.
+
+## 2026-06-29T16:57:42Z hourly build loop
+
+- Branch: `hermes/voice-first-compliance-correction`
+- HEAD before: `f776059`
+- HEAD after: this local commit (see `git rev-parse HEAD` after commit)
+- Chunk selected: align deployment readiness gates across CLI preflight, protected readiness endpoint, strict startup, and a no-credential deployment smoke.
+- Files changed:
+  - `.env.example`
+  - `docs/deployment-readiness.md`
+  - `docs/tilda-autonomous-log.md`
+  - `docs/tilda-priority-plan.md`
+  - `package.json`
+  - `scripts/check-style-guard.py`
+  - `src/deployment-preflight.ts`
+  - `src/deployment-smoke.ts`
+  - `src/readiness.ts`
+  - `src/server-battletest.ts`
+  - `src/server.ts`
+- Commands run:
+  - `npm run typecheck` -> pass
+  - `npm run style:guard` -> `STYLE_GUARD_OK`
+  - `ALLOW_DEPLOYMENT_BLOCKERS=true npm run deployment:preflight` -> `DEPLOYMENT_PREFLIGHT_REVIEW_ONLY`
+  - `npm run deployment:smoke` -> `DEPLOYMENT_SMOKE_OK`
+  - `npm run server:battletest` -> `SERVER_BATTLETEST_OK`
+  - `npm run demo:fake` -> `DEMO_FAKE_HAIR_SALON_OK`
+  - `npm run check` -> pass
+  - `git diff --check` -> pass
+- Pass/fail markers:
+  - Shared readiness model now drives `npm run deployment:preflight`, `/readiness/live-pilot`, and `REQUIRE_LIVE_PILOT_READINESS=true` startup refusal.
+  - `/readiness/live-pilot` remains bearer-protected and returns `checks`, `blockers`, and `warnings`.
+  - `npm run deployment:smoke` starts the real server with fake fixtures, verifies health/readiness/metrics, and proves strict startup blocks unsafe env.
+- Blocker: live deployment still needs real voice/telephony credentials, real owner alert routing, production webhook URL, and live secrets. No hosted deploy, live Twilio/voice smoke, or live Google Calendar event was attempted.
+- Next chunk: add operator-facing failure triage and live-demo checklist automation for the hosted-demo handoff.

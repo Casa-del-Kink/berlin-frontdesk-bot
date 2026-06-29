@@ -12,10 +12,19 @@ npm run typecheck
 npm run style:guard
 npm run server:battletest
 npm run deployment:preflight
+npm run deployment:smoke
 npm run start
 ```
 
 Do not expose the service to real traffic until `npm run deployment:preflight` passes without `ALLOW_DEPLOYMENT_BLOCKERS=true`.
+
+For hosted live-pilot runtimes, set:
+
+```text
+REQUIRE_LIVE_PILOT_READINESS=true
+```
+
+With that flag, the server refuses startup while deployment blockers remain. Leave it unset for local fake-provider demos and CI smokes.
 
 ## Required runtime env
 
@@ -98,6 +107,22 @@ DEPLOYMENT_PREFLIGHT_REVIEW_ONLY
 
 Review-only mode must never be used as proof that a deployment is live-ready.
 
+## Deployment smoke command
+
+Run the local deployment smoke before a hosted demo handoff:
+
+```bash
+npm run deployment:smoke
+```
+
+Expected marker:
+
+```text
+DEPLOYMENT_SMOKE_OK
+```
+
+This starts the real server with fake provider fixtures, proves `/health` works, proves protected readiness returns `401` without bearer auth, proves unsafe readiness returns `409` with blocker details, proves protected metrics still work, and proves `REQUIRE_LIVE_PILOT_READINESS=true` refuses startup while blockers remain. It does not call paid/live providers.
+
 ## HTTP checks after deploy
 
 Health should be public and non-sensitive:
@@ -120,9 +145,10 @@ curl -H "Authorization: Bearer $SERVER_TOOL_TOKEN" https://<public-host>/readine
 
 Expected:
 
-- `200` when no blocker gates remain
+- `200` when no blocker checks remain
 - `409` while live blockers remain
 - `401` without the bearer token
+- response includes `checks`, `blockers`, and `warnings` arrays matching `npm run deployment:preflight`
 
 Metrics and operator/privacy endpoints are also bearer-protected:
 

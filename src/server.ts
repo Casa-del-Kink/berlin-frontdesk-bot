@@ -2,7 +2,8 @@ import express from "express";
 import cron from "node-cron";
 import twilio from "twilio";
 import { DateTime } from "luxon";
-import { assertLivePilotReadiness, loadClient, validateLivePilotReadiness, validateRuntimeEnv } from "./config.js";
+import { loadClient, validateRuntimeEnv } from "./config.js";
+import { assertDeploymentReadiness, validateDeploymentReadiness } from "./readiness.js";
 import { buildSystemPrompt } from "./prompt.js";
 import { runConversation } from "./llm.js";
 import { toolDefs, makeHandlers, runTool } from "./tools.js";
@@ -28,13 +29,13 @@ app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 
 for (const warning of validateRuntimeEnv()) console.warn(`[config] ${warning}`);
-if (process.env.REQUIRE_LIVE_PILOT_READINESS === "true") assertLivePilotReadiness(cfg);
+if (process.env.REQUIRE_LIVE_PILOT_READINESS === "true") assertDeploymentReadiness(cfg);
 
 app.get("/", (_req, res) => res.send(`OK - ${cfg.name}`));
 app.get("/health", (_req, res) => res.json({ ok: true, client: cfg.name, storeBackend: getStoreBackend().name, time: new Date().toISOString() }));
 app.get("/readiness/live-pilot", (req, res) => {
   if (!validateToolRequest(req)) return res.status(401).json({ error: "Unauthorized" });
-  const readiness = validateLivePilotReadiness(cfg);
+  const readiness = validateDeploymentReadiness(cfg);
   res.status(readiness.ok ? 200 : 409).json(readiness);
 });
 
