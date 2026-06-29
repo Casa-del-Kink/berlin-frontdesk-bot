@@ -120,6 +120,7 @@ Resolved:
 
 - dev Gmail account exists
 - Tilda calendar ID configured in `clients/salon-demo.yaml`: `ec639255e6fd2473e4ea2e1af60b996dab2f5df5fa5422047fff337ccc523938@group.calendar.google.com`
+- real Tilda dev calendar is the default target for calendar integration work; fake calendar remains for CI and no-credential checks
 - service account exists: `tilda-calendar-bot@tilda-dev-500907.iam.gserviceaccount.com`
 - live Google Calendar smoke passed using the uploaded service account JSON
 

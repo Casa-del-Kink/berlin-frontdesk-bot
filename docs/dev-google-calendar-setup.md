@@ -64,8 +64,9 @@ calendarId: "ec639255e6fd2473e4ea2e1af60b996dab2f5df5fa5422047fff337ccc523938@gr
 ## Safety rules
 
 - Do not use Michael's main calendar for dev booking tests.
+- Use the real Tilda dev calendar for calendar integration work now that it exists.
 - Do not commit credentials.
-- Keep fake calendar tests as default for CI and no-credential local checks.
+- Keep fake calendar tests only for CI and no-credential local checks.
 - Real Google tests should use clearly named test events and clean up after themselves.
 
 ## Current status
@@ -91,6 +92,7 @@ Once credentials are available:
 
 ```bash
 USE_FAKE_CALENDAR=false CLIENT_CONFIG_PATH=clients/salon-demo.yaml GOOGLE_SA_JSON='...' npm run google-calendar:smoke
+USE_FAKE_CALENDAR=false CLIENT_CONFIG_PATH=clients/salon-demo.yaml GOOGLE_SA_JSON='...' npm run live-calendar:smoke
 ```
 
 If the smoke script does not exist yet, implement it before running the live calendar test.
