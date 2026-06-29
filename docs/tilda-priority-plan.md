@@ -201,7 +201,7 @@ Telephony options:
 Tasks:
 
 - Pick the first provider path for implementation.
-- Create provider-specific setup doc for the selected path.
+- Create provider-specific setup doc for the selected path. Current draft: `docs/elevenlabs-voice-agent-setup.md`.
 - Map voice-agent tools to existing endpoints:
   - `POST /tools/check_availability`
   - `POST /tools/book_appointment`

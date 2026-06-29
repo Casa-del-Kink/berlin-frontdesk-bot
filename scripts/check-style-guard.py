@@ -17,6 +17,7 @@ CHECK_FILES = [
     "docs/compliance-live-pilot-pack.md",
     "docs/demo-script-hair-salon.md",
     "docs/dev-google-calendar-setup.md",
+    "docs/elevenlabs-voice-agent-setup.md",
     "docs/tilda-identity.md",
     "docs/tilda-priority-plan.md",
     "docs/tilda-voice-style.md",
@@ -40,6 +41,7 @@ BANNED_PATTERNS = [
 
 # These files describe banned phrases, so they are allowed to contain the literal words.
 POLICY_FILES = {
+    "docs/elevenlabs-voice-agent-setup.md",
     "docs/tilda-voice-style.md",
     "docs/tilda-identity.md",
     "docs/tilda-priority-plan.md",
@@ -56,6 +58,7 @@ SMS_ALLOWED_CONTEXT = [
     "keep sms out of scope",
     "sms as an offered channel",
     "sms is in scope",
+    "do not offer sms",
 ]
 
 
