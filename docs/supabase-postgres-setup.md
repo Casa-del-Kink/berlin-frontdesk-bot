@@ -96,6 +96,42 @@ call_outcomes
 
 Do not manually create tables unless debugging. The app owns its minimal schema for this pilot.
 
+## Supabase admin API client
+
+For server-only Supabase API access, use the admin client wrapper:
+
+```ts
+import { supabaseAdmin } from "./supabase-admin.js";
+```
+
+It implements:
+
+```ts
+import { createClient } from "@supabase/supabase-js";
+
+const supabaseUrl = process.env.SUPABASE_URL!;
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+
+export const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
+  auth: { persistSession: false, autoRefreshToken: false },
+});
+```
+
+Runtime env:
+
+```bash
+SUPABASE_URL=https://dicxsxmdyjleigelwaya.supabase.co
+SUPABASE_SERVICE_ROLE_KEY='***'
+```
+
+Smoke command:
+
+```bash
+SUPABASE_URL='https://dicxsxmdyjleigelwaya.supabase.co' SUPABASE_SERVICE_ROLE_KEY='***' npm run supabase:admin:smoke
+```
+
+This checks that the service role key can query Supabase through the API. It does not replace the direct Postgres smoke below, which still verifies the app's Postgres backend, migrations, advisory locks, retention, and idempotency.
+
 ## Supabase CLI status
 
 `supabase init` has been run in the repo and created:
