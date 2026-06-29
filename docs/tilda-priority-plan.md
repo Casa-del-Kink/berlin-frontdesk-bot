@@ -155,7 +155,9 @@ Tasks:
 
 Blocked on:
 
-- Supabase test database URL
+- Supabase test database password or full `DATABASE_URL`
+- Supabase CLI access token if local CLI linking is required
+- outbound DB network reachability from this runtime to `db.dicxsxmdyjleigelwaya.supabase.co:5432`, or a reachable pooler/direct connection option
 
 Acceptance criteria:
 
@@ -166,7 +168,7 @@ Acceptance criteria:
 Suggested command:
 
 ```bash
-PGSSL=true DATABASE_URL='postgresql://...' npm run postgres:smoke
+SUPABASE_DB_PASSWORD='***' npm run supabase:postgres:smoke
 ```
 
 ### P3 - Voice provider path for first demo
