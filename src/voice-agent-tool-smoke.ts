@@ -18,6 +18,19 @@ function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
 }
 
+function countOccurrences(haystack: string, needle: string) {
+  return haystack.split(needle).length - 1;
+}
+
+async function waitForOutput(getOutput: () => string, needle: string) {
+  const deadline = Date.now() + 5_000;
+  while (Date.now() < deadline) {
+    if (getOutput().includes(needle)) return;
+    await sleep(100);
+  }
+  throw new Error(`timed out waiting for server output: ${needle}`);
+}
+
 async function json(path: string, init: RequestInit = {}): Promise<JsonResponse> {
   const res = await fetch(`${BASE}${path}`, init);
   const text = await res.text();
@@ -99,6 +112,8 @@ async function main() {
     assert(out.body?.ok === true, `voice booking should succeed: ${JSON.stringify(out.body)}`);
     assert(out.body?.channel === "phone", `voice booking should preserve phone channel: ${JSON.stringify(out.body)}`);
     assert(out.body?.estimatedValueCents === 4500, `voice booking should expose revenue estimate: ${JSON.stringify(out.body)}`);
+    await waitForOutput(() => stdout, "New booking: Laura Schneider - Damenhaarschnitt");
+    assert(countOccurrences(stdout, "New booking: Laura Schneider - Damenhaarschnitt") === 1, `voice booking should alert owner once: ${stdout}`);
 
     out = await json(
       "/tools/register_lead",
@@ -115,6 +130,8 @@ async function main() {
     );
     assert(out.res.ok, `voice lead failed: ${out.res.status} ${JSON.stringify(out.body)}`);
     assert(out.body?.ok === true && out.body?.channel === "phone", `voice lead should use phone channel: ${JSON.stringify(out.body)}`);
+    await waitForOutput(() => stdout, "Follow-up needed: Mina Hoffmann");
+    assert(countOccurrences(stdout, "Follow-up needed: Mina Hoffmann") === 1, `voice lead should alert owner once: ${stdout}`);
 
     out = await json(
       "/tools/register_lead",
@@ -130,6 +147,7 @@ async function main() {
       }),
     );
     assert(out.res.ok && out.body?.idempotentReplay === true, `voice lead retry should be idempotent: ${out.res.status} ${JSON.stringify(out.body)}`);
+    assert(countOccurrences(stdout, "Follow-up needed: Mina Hoffmann") === 1, `voice lead retry should not duplicate owner alert: ${stdout}`);
 
     out = await json("/webhook/voice/post-call", authJson({ callId: "voice-smoke-call-1", phone: "+491****7001", status: "booked", summary: "Caller booked a haircut through the voice agent smoke." }));
     assert(out.res.ok, `voice post-call failed: ${out.res.status} ${JSON.stringify(out.body)}`);
@@ -137,6 +155,22 @@ async function main() {
 
     out = await json("/webhook/voice/post-call", authJson({ callId: "voice-smoke-call-1", phone: "+491****7001", status: "booked", summary: "Provider retry duplicate." }));
     assert(out.res.ok && out.body?.idempotentReplay === true, `voice post-call retry should be idempotent: ${out.res.status} ${JSON.stringify(out.body)}`);
+
+    out = await json(
+      "/webhook/voice/post-call",
+      authJson({ callId: "voice-smoke-call-2", phone: "+491****7003", status: "needs_followup", summary: "Caller asked for colour advice and a human callback." }),
+    );
+    assert(out.res.ok, `voice follow-up post-call failed: ${out.res.status} ${JSON.stringify(out.body)}`);
+    assert(out.body?.outcome?.status === "needs_followup" && out.body?.idempotentReplay === false, `voice follow-up post-call should store outcome: ${JSON.stringify(out.body)}`);
+    await waitForOutput(() => stdout, "Phone follow-up needed: +491****7003 · needs_followup");
+    assert(countOccurrences(stdout, "Phone follow-up needed: +491****7003 · needs_followup") === 1, `voice follow-up post-call should alert owner once: ${stdout}`);
+
+    out = await json(
+      "/webhook/voice/post-call",
+      authJson({ callId: "voice-smoke-call-2", phone: "+491****7003", status: "needs_followup", summary: "Provider retry duplicate." }),
+    );
+    assert(out.res.ok && out.body?.idempotentReplay === true, `voice follow-up post-call retry should be idempotent: ${out.res.status} ${JSON.stringify(out.body)}`);
+    assert(countOccurrences(stdout, "Phone follow-up needed: +491****7003 · needs_followup") === 1, `voice follow-up post-call retry should not duplicate owner alert: ${stdout}`);
 
     out = await json("/metrics/today", { headers: { authorization: `Bearer ${TOKEN}` } });
     assert(out.res.ok, `voice metrics failed: ${out.res.status} ${JSON.stringify(out.body)}`);
@@ -147,6 +181,10 @@ async function main() {
     const callExport = await json("/privacy/export", authJson({ phone: "+491****7001" }));
     assert(callExport.res.ok, `voice privacy export failed: ${callExport.res.status} ${JSON.stringify(callExport.body)}`);
     assert(callExport.body?.callOutcomes?.length === 1, `voice post-call retry should store one call outcome: ${JSON.stringify(callExport.body)}`);
+
+    const followUpCallExport = await json("/privacy/export", authJson({ phone: "+491****7003" }));
+    assert(followUpCallExport.res.ok, `voice follow-up privacy export failed: ${followUpCallExport.res.status} ${JSON.stringify(followUpCallExport.body)}`);
+    assert(followUpCallExport.body?.callOutcomes?.length === 1, `voice follow-up retry should store one call outcome: ${JSON.stringify(followUpCallExport.body)}`);
 
     console.log("VOICE_AGENT_TOOL_SMOKE_OK");
     console.log(JSON.stringify({ metrics: out.body }, null, 2));

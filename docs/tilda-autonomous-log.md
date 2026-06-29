@@ -22,3 +22,31 @@
   - `npm run first-test:smoke` -> `FIRST_TEST_SMOKE_OK`
 - Blocker: no new live credentials were used. Live Supabase Postgres remains blocked on database URL or password and DB reachability. Live provider setup remains blocked on chosen voice and telephony provider access.
 - Next chunk: tighten owner-alert assertions for voice booking and follow-up paths, or add a small HTTP smoke that validates missing bearer auth on each voice tool endpoint.
+
+## 2026-06-29T14:53:30Z
+
+- Branch: `hermes/voice-first-compliance-correction`
+- HEAD before: `abc226c37a4029bd29ebcf2ff75b4baab1d9a301`
+- HEAD after: this local commit (see `git rev-parse HEAD` after commit)
+- Chunk selected: tighten voice owner-alert assertions for booking, lead follow-up, and post-call follow-up paths.
+- Files changed:
+  - `src/voice-agent-tool-smoke.ts`
+  - `docs/tilda-priority-plan.md`
+  - `docs/tilda-autonomous-log.md`
+- Commands run:
+  - `npm run voice:smoke` -> `VOICE_AGENT_TOOL_SMOKE_OK`
+  - `npm run typecheck` -> pass
+  - `npm run style:guard` -> `STYLE_GUARD_OK`
+  - `npm run server:battletest` -> `SERVER_BATTLETEST_OK`
+  - `npm run check` -> pass
+  - `npm run first-test:smoke` -> `FIRST_TEST_SMOKE_OK`
+  - `supabase_admin_smoke` through `michael_gateway` -> `SUPABASE_ADMIN_SMOKE_OK`
+  - `npm run supabase:postgres:smoke` -> `POSTGRES_STORE_SMOKE_OK`
+  - `npm run supabase:admin:smoke` -> failed because local shell lacks `SUPABASE_URL`/`SUPABASE_SECRET_KEY`; gateway admin smoke is the working configured admin path for this Hermes profile.
+- Verification added:
+  - Booking owner alert emitted exactly once.
+  - Lead follow-up owner alert emitted exactly once and not duplicated on provider retry.
+  - Post-call follow-up owner alert emitted exactly once and not duplicated on provider retry.
+  - Post-call follow-up retry stores one call outcome.
+- Blocker: no new live voice/telephony credentials used. Live telephony remains dependent on selected provider access and configuration. Local-shell Supabase REST smoke env is not configured, but gateway admin smoke passes.
+- Next chunk: add explicit unauthorized-request coverage for each voice-facing endpoint, or build the full fake-provider hair-salon demo runner.

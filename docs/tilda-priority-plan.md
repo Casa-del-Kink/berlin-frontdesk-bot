@@ -221,15 +221,15 @@ Tasks:
   - `POST /tools/book_appointment`
   - `POST /tools/register_lead`
   - `POST /webhook/voice/post-call`
-- Add a deterministic voice-tool smoke test that simulates provider calls over HTTP.
+- Add a deterministic voice-tool smoke test that simulates provider calls over HTTP. Done.
 - Add one realistic German call script for demo testing.
-- Confirm owner alert behavior after booked and needs-followup outcomes.
+- Confirm owner alert behavior after booked, lead follow-up, and post-call follow-up outcomes. Done in `npm run voice:smoke`.
 
 Acceptance criteria:
 
 - A voice agent can check slots, book, register follow-up, and post call summary through the same backend as WhatsApp.
 - A simulated call path is tested without provider credentials.
-- `npm run voice:smoke` exercises the real HTTP tool endpoints with fake providers and validates phone-channel metrics plus retry idempotency.
+- `npm run voice:smoke` exercises the real HTTP tool endpoints with fake providers and validates phone-channel metrics, retry idempotency, and exactly-once owner alerts for booking/follow-up paths.
 - Provider-specific live setup steps are documented separately from generic architecture.
 - Call transcript or recording storage is off by default unless explicitly enabled and reviewed.
 
