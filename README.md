@@ -90,7 +90,7 @@ clients/salon-demo.yaml  ← one business = one file. Adapt = copy and edit.
   `dryRun: true`; set `dryRun: false` deliberately after checking counts.
 - `GET /readiness/live-pilot` is a bearer-protected gate report for live-pilot blockers
   (credentials, signature validation, fake calendar, retention policy, AI disclosure text,
-  privacy contact) and JSON-store / AVV-DPA review warnings.
+  privacy contact, owner alert destination) and JSON-store / AVV-DPA review warnings.
   Set `REQUIRE_LIVE_PILOT_READINESS=true` only when startup should fail on unresolved blockers.
 - Twilio webhook requests are signature-validated by default. Set `TWILIO_WEBHOOK_BASE_URL`
   to the public tunnel/domain if auto-detection does not match Twilio's URL. Use

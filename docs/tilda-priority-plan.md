@@ -311,6 +311,7 @@ Tasks:
 - Confirm webhook base URL and Twilio signature validation behavior.
 - Confirm secrets storage approach.
 - Confirm logs avoid unnecessary PII.
+- Gate live readiness on a real owner alert destination, with an explicit log-only escape hatch for internal hosted demos.
 - Add basic monitoring plan.
 - Add `npm run deployment:preflight` for machine-readable deployment blockers and review-only output.
 
@@ -322,6 +323,7 @@ Acceptance criteria:
 - Fake providers are disabled for live booking.
 - Postgres backend is used for live pilot.
 - Webhook signature validation is enabled for live Twilio webhooks.
+- Owner alerts are configured for a client pilot or explicitly accepted as log-only for an internal hosted demo.
 
 ## Recommended next implementation batch
 
@@ -338,6 +340,7 @@ If no new credentials are available, implement these in order:
 9. Build the full fake-provider hair-salon demo runner. Done via `npm run demo:fake`.
 10. Add live-provider demo command documentation that stays credential-safe and visible-proof mode for the dev Google Calendar smoke. Done via `docs/live-provider-demo.md` and `KEEP_SMOKE_EVENT=true` in `google-calendar:smoke`.
 11. Add deployment readiness pack and preflight. Done via `docs/deployment-readiness.md` and `npm run deployment:preflight`.
+12. Add owner-alert destination readiness gate, including `OWNER_ALERT_LOG_ONLY_ACCEPTED=true` for internal hosted demos only. Done.
 
 P2 is no longer an infrastructure blocker. Re-run the Supabase Postgres smoke only after schema/backend changes or when moving the runtime to a new host.
 

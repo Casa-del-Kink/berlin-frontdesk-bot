@@ -118,6 +118,12 @@ export function validateLivePilotReadiness(cfg?: Client): LivePilotReadiness {
       detail: "Client YAML must set privacyContact for data export/delete or privacy questions before live traffic.",
     },
     {
+      name: "owner alert destination",
+      ok: Boolean(cfg?.ownerWhatsapp?.trim()) || process.env.OWNER_ALERT_LOG_ONLY_ACCEPTED === "true",
+      severity: "blocker",
+      detail: "Client YAML should set ownerWhatsapp so bookings, follow-ups, and daily summaries reach the operator. For internal hosted demos only, set OWNER_ALERT_LOG_ONLY_ACCEPTED=true to accept console-only alerts.",
+    },
+    {
       name: "production store",
       ok: storeBackend !== "json",
       severity: "warning",

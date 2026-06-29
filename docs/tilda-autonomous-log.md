@@ -136,3 +136,32 @@
   - `npm run deployment:preflight` fails on unresolved live blockers unless review-only mode is explicitly set.
 - Blocker: no live telephony/voice provider credentials were used. Live-provider commands are documented and gated but not executed against paid provider traffic.
 - Next chunk: use real credentials only when approved to run live calendar or telephony smoke, otherwise continue with deployment hardening.
+
+## 2026-06-29T16:02:14Z
+
+- Branch: `hermes/voice-first-compliance-correction`
+- HEAD before: `bc4a4a5`
+- HEAD after: this local commit (see `git rev-parse HEAD` after commit)
+- Chunk selected: add an owner-alert destination readiness gate so live pilots do not silently rely on console-only alerts.
+- Files changed:
+  - `src/config.ts`
+  - `docs/deployment-readiness.md`
+  - `README.md`
+  - `docs/tilda-priority-plan.md`
+  - `docs/tilda-autonomous-log.md`
+- Commands run:
+  - `npm run typecheck` -> pass
+  - `npm run style:guard` -> `STYLE_GUARD_OK`
+  - `ALLOW_DEPLOYMENT_BLOCKERS=true npm run deployment:preflight` -> `DEPLOYMENT_PREFLIGHT_REVIEW_ONLY`
+  - default `npm run deployment:preflight` -> `DEPLOYMENT_PREFLIGHT_BLOCKED` and non-zero exit as expected
+  - simulated complete env with `OWNER_ALERT_LOG_ONLY_ACCEPTED=true` -> `DEPLOYMENT_PREFLIGHT_OK`
+  - `npm run server:battletest` -> `SERVER_BATTLETEST_OK`
+  - `npm run demo:fake` -> `DEMO_FAKE_HAIR_SALON_OK`
+  - `npm run check` -> pass
+  - `git diff --check` -> pass
+- Verification added:
+  - `/readiness/live-pilot` now includes `owner alert destination` as a blocker when `ownerWhatsapp` is empty.
+  - Internal hosted demos can deliberately allow log-only alerts with `OWNER_ALERT_LOG_ONLY_ACCEPTED=true`.
+  - Deployment docs now distinguish internal demo log-only alerts from a real client pilot owner alert destination.
+- Blocker: real owner WhatsApp routing is still not configured in `clients/salon-demo.yaml`; this is acceptable for fake/local demos but remains a live-pilot blocker unless explicitly accepted for an internal hosted demo.
+- Next chunk: add a small operator alert routing doc/checklist for Twilio sandbox versus live WhatsApp owner delivery, or run live provider smoke only if approved credentials are available.

@@ -27,7 +27,11 @@ PORT=3000
 CLIENT_FILE=clients/salon-demo.yaml
 SERVER_TOOL_TOKEN=<long random bearer token>
 DATA_RETENTION_DAYS=30
+# Internal hosted demo only, when owner alerts are intentionally console/log-only:
+# OWNER_ALERT_LOG_ONLY_ACCEPTED=true
 ```
+
+For a real client pilot, configure `ownerWhatsapp` in the client YAML instead of relying on log-only alerts.
 
 Calendar:
 
@@ -149,6 +153,7 @@ Not allowed for live traffic:
 - `STORE_BACKEND=json`
 - missing `SERVER_TOOL_TOKEN`
 - `SKIP_TWILIO_SIGNATURE_VALIDATION=true`
+- empty `ownerWhatsapp`, unless this is an internal hosted demo and `OWNER_ALERT_LOG_ONLY_ACCEPTED=true` is intentionally set
 
 ## Logs and PII
 
@@ -197,7 +202,7 @@ Go only when:
 - Google Calendar cleanup smoke passes
 - Twilio webhook signature validation is active
 - operator endpoints require bearer auth
-- owner alert destination is configured or explicitly accepted as log-only for a demo
+- owner alert destination is configured for a client pilot, or explicitly accepted as log-only for an internal hosted demo
 
 No-go when:
 
