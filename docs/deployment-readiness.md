@@ -96,6 +96,24 @@ Review-only mode when credentials are intentionally absent:
 ALLOW_DEPLOYMENT_BLOCKERS=true npm run deployment:preflight
 ```
 
+Machine-readable output for scheduled checks and operator handoffs:
+
+```bash
+ALLOW_DEPLOYMENT_BLOCKERS=true DEPLOYMENT_PREFLIGHT_JSON=true npm run deployment:preflight
+```
+
+Regression-test the JSON mode locally:
+
+```bash
+npm run deployment:preflight:smoke
+```
+
+Expected marker:
+
+```text
+DEPLOYMENT_PREFLIGHT_JSON_SMOKE_OK
+```
+
 Expected markers:
 
 ```text

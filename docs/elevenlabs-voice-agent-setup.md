@@ -50,6 +50,40 @@ VOICE_AGENT_TOOL_SMOKE_OK
 
 This starts the server locally, calls availability, booking, follow-up registration, and post-call summary endpoints with bearer auth, then checks phone-channel metrics and retry idempotency. It does not call ElevenLabs, Twilio, Google Calendar, Supabase, or any paid provider.
 
+## Contract/preflight export for provider setup
+
+Before someone maps tools inside ElevenLabs, generate the reviewable endpoint contract:
+
+```bash
+ALLOW_VOICE_AGENT_CONTRACT_BLOCKERS=true npm run voice:contract
+```
+
+For a machine-readable artifact:
+
+```bash
+ALLOW_VOICE_AGENT_CONTRACT_BLOCKERS=true VOICE_AGENT_CONTRACT_JSON=true npm run voice:contract
+```
+
+To regression-test the contract behavior without provider credentials:
+
+```bash
+npm run voice:contract:smoke
+```
+
+Expected marker:
+
+```text
+VOICE_AGENT_CONTRACT_SMOKE_OK
+```
+
+Expected review marker while the service is not yet hosted:
+
+```text
+VOICE_AGENT_CONTRACT_REVIEW_ONLY
+```
+
+The contract deliberately blocks live setup unless a public HTTPS base URL and a long `SERVER_TOOL_TOKEN` are configured. Do not paste real bearer tokens into docs, git, or chat.
+
 ## Tool mapping
 
 ### check availability
