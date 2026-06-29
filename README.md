@@ -86,13 +86,16 @@ clients/salon-demo.yaml  ← one business = one file. Adapt = copy and edit.
 - `POST /privacy/export` and `POST /privacy/delete` support first-pilot GDPR operations for one
   customer phone identifier. These are operator-only endpoints and must be protected with
   `SERVER_TOOL_TOKEN` in any non-local deployment.
+- `POST /privacy/retention/purge` supports operator-triggered retention cleanup. It defaults to
+  `dryRun: true`; set `dryRun: false` deliberately after checking counts.
 - Twilio webhook requests are signature-validated by default. Set `TWILIO_WEBHOOK_BASE_URL`
   to the public tunnel/domain if auto-detection does not match Twilio's URL. Use
   `SKIP_TWILIO_SIGNATURE_VALIDATION=true` only for local manual tests.
 - `POST /tools/:name` exposes the shared "one brain" tools for ElevenLabs/server-tool use.
   Set `SERVER_TOOL_TOKEN` to require an `Authorization` bearer header.
 - `POST /webhook/voice/post-call` stores phone call outcomes and sends owner follow-up alerts
-  for missed/voicemail/failed/needs-follow-up calls. See `docs/voice-phone-readiness.md`.
+  for missed/voicemail/failed/needs-follow-up calls. Provider retries with the same `callId` are
+  idempotent and do not duplicate stored outcomes or alerts. See `docs/voice-phone-readiness.md`.
 - `book_appointment` re-checks the requested interval inside an in-process booking lock before
   creating the event. Same customer/service/start retries are idempotent; different customers are
   still rejected by the double-booking guard.

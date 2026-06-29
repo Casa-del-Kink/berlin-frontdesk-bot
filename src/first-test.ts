@@ -35,7 +35,7 @@ async function main() {
   // Import after env setup so fake-calendar/state files are honored by modules with top-level config.
   const { loadClient, findService } = await import("./config.js");
   const { runTool } = await import("./tools.js");
-  const { addCallOutcome, addLead, addMessage, deleteSubjectData, exportSubjectData, metricsOn } = await import("./store.js");
+  const { addCallOutcome, addLead, addMessage, deleteSubjectData, exportSubjectData, metricsOn, purgeOldData } = await import("./store.js");
 
   const cfg = loadClient();
   const phone = "whatsapp:+491****1111";
@@ -123,6 +123,30 @@ async function main() {
   const afterDelete = exportSubjectData(privacyPhone);
   console.log("privacy_delete=", JSON.stringify(deleted));
 
+  const retentionPhone = "whatsapp:+491****4444";
+  addLead({
+    phone: retentionPhone,
+    name: "Retention Test",
+    service: service.name,
+    status: "needs_followup",
+    notes: "Old lead should be purged by retention helper.",
+    channel: "whatsapp",
+    estimatedValueCents: 0,
+    createdAt: "2020-01-02T10:00:00.000+01:00",
+  });
+  addCallOutcome({
+    callId: "retention-call-test",
+    phone: retentionPhone,
+    status: "voicemail",
+    summary: "Old call should be purged by retention helper.",
+    createdAt: "2020-01-02T10:05:00.000+01:00",
+  });
+  const retentionDryRun = purgeOldData(30, true);
+  const retentionActual = purgeOldData(30, false);
+  const retentionAfter = exportSubjectData(retentionPhone);
+  console.log("retention_dry_run=", JSON.stringify(retentionDryRun));
+  console.log("retention_actual=", JSON.stringify(retentionActual));
+
   if (!(booking as any).ok) throw new Error("Expected booking to succeed");
   if (!(idempotentReplay as any).ok || !(idempotentReplay as any).idempotentReplay) {
     throw new Error("Expected same booking retry to return an idempotent replay");
@@ -140,6 +164,15 @@ async function main() {
   }
   if (afterDelete.conversations.length !== 0 || afterDelete.leads.length !== 0 || afterDelete.callOutcomes.length !== 0) {
     throw new Error("Expected no subject data after privacy delete");
+  }
+  if (retentionDryRun.leadsDeleted !== 1 || retentionDryRun.callOutcomesDeleted !== 1 || !retentionDryRun.dryRun) {
+    throw new Error("Expected retention dry run to count old lead/call without deleting");
+  }
+  if (retentionActual.leadsDeleted !== 1 || retentionActual.callOutcomesDeleted !== 1 || retentionActual.dryRun) {
+    throw new Error("Expected retention purge to delete old lead/call");
+  }
+  if (retentionAfter.leads.length !== 0 || retentionAfter.callOutcomes.length !== 0) {
+    throw new Error("Expected retention-purged subject data to be gone");
   }
 
   const bookedIso = start.toISO();

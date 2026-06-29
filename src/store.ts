@@ -8,6 +8,7 @@ import { DateTime } from "luxon";
 export interface Msg {
   role: "user" | "assistant";
   content: string;
+  createdAt?: string;
 }
 
 export type LeadStatus = "booked" | "needs_followup";
@@ -29,6 +30,11 @@ export interface Lead {
 
 export interface AddLeadResult {
   lead: Lead;
+  inserted: boolean;
+}
+
+export interface AddCallOutcomeResult {
+  outcome: CallOutcome;
   inserted: boolean;
 }
 
@@ -66,6 +72,14 @@ export interface SubjectDataDeletion {
   callOutcomesDeleted: number;
 }
 
+export interface RetentionPurgeResult {
+  cutoffISO: string;
+  conversationsDeleted: number;
+  leadsDeleted: number;
+  callOutcomesDeleted: number;
+  dryRun: boolean;
+}
+
 interface State {
   conversations: Record<string, Msg[]>;
   leads: Lead[];
@@ -94,7 +108,7 @@ export function getHistory(phone: string): Msg[] {
 
 export function addMessage(phone: string, role: Msg["role"], content: string) {
   const history = (state.conversations[phone] ??= []);
-  history.push({ role, content });
+  history.push({ role, content, createdAt: new Date().toISOString() });
   if (history.length > MAX_HISTORY_PER_PHONE) {
     state.conversations[phone] = history.slice(-MAX_HISTORY_PER_PHONE);
   }
@@ -129,9 +143,13 @@ export function leadsOn(dateISO: string, tz: string): Lead[] {
   return state.leads.filter((l) => DateTime.fromISO(l.createdAt).setZone(tz).toISODate() === dateISO);
 }
 
-export function addCallOutcome(outcome: CallOutcome) {
+export function addCallOutcome(outcome: CallOutcome): AddCallOutcomeResult {
+  const existing = state.callOutcomes.find((stored) => stored.callId === outcome.callId);
+  if (existing) return { outcome: existing, inserted: false };
+
   state.callOutcomes.push(outcome);
   persist();
+  return { outcome, inserted: true };
 }
 
 export function callOutcomesOn(dateISO: string, tz: string): CallOutcome[] {
@@ -190,6 +208,39 @@ export async function withBookingLock<T>(key: string, fn: () => Promise<T>): Pro
     release();
     if (inProcessLocks.get(key) === chained) inProcessLocks.delete(key);
   }
+}
+
+export function purgeOldData(maxAgeDays: number, dryRun = false): RetentionPurgeResult {
+  if (!Number.isFinite(maxAgeDays) || maxAgeDays <= 0) throw new Error("maxAgeDays must be a positive number");
+
+  const cutoff = DateTime.now().minus({ days: maxAgeDays });
+  const cutoffISO = cutoff.toISO()!;
+  let conversationsDeleted = 0;
+
+  const nextConversations: State["conversations"] = {};
+  for (const [phone, messages] of Object.entries(state.conversations)) {
+    const kept = messages.filter((msg) => {
+      // Legacy messages without timestamps are retained until subject delete or Postgres migration.
+      if (!msg.createdAt) return true;
+      return DateTime.fromISO(msg.createdAt) >= cutoff;
+    });
+    conversationsDeleted += messages.length - kept.length;
+    if (kept.length > 0) nextConversations[phone] = kept;
+  }
+
+  const nextLeads = state.leads.filter((lead) => DateTime.fromISO(lead.createdAt) >= cutoff);
+  const leadsDeleted = state.leads.length - nextLeads.length;
+  const nextCallOutcomes = state.callOutcomes.filter((call) => DateTime.fromISO(call.createdAt) >= cutoff);
+  const callOutcomesDeleted = state.callOutcomes.length - nextCallOutcomes.length;
+
+  if (!dryRun && (conversationsDeleted > 0 || leadsDeleted > 0 || callOutcomesDeleted > 0)) {
+    state.conversations = nextConversations;
+    state.leads = nextLeads;
+    state.callOutcomes = nextCallOutcomes;
+    persist();
+  }
+
+  return { cutoffISO, conversationsDeleted, leadsDeleted, callOutcomesDeleted, dryRun };
 }
 
 export function deleteSubjectData(phone: string): SubjectDataDeletion {

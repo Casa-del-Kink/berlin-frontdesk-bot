@@ -132,13 +132,28 @@ async function main() {
 
     out = await json(
       "/webhook/voice/post-call",
-      authJson({ phone: "+49100000003", status: "needs_followup", summary: "Asked for colour consultation after hours" }),
+      authJson({ callId: "battle-call-1", phone: "+491****0003", status: "needs_followup", summary: "Asked for colour consultation after hours" }),
     );
     assert(out.res.ok, `voice post-call failed: ${out.res.status} ${JSON.stringify(out.body)}`);
     assert(out.body?.outcome?.status === "needs_followup", "voice status not stored");
+    assert(out.body?.idempotentReplay === false, "first voice post-call should not be replay");
+
+    out = await json(
+      "/webhook/voice/post-call",
+      authJson({ callId: "battle-call-1", phone: "+491****0003", status: "needs_followup", summary: "Provider retry duplicate" }),
+    );
+    assert(out.res.ok, `voice post-call retry failed: ${out.res.status} ${JSON.stringify(out.body)}`);
+    assert(out.body?.idempotentReplay === true, `voice post-call retry should be idempotent: ${JSON.stringify(out.body)}`);
+
+    out = await json("/privacy/retention/purge", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ maxAgeDays: 30 }) });
+    assert(out.res.status === 401, `retention purge without bearer should be 401, got ${out.res.status}`);
+
+    out = await json("/privacy/retention/purge", authJson({ maxAgeDays: 30 }));
+    assert(out.res.ok, `retention purge dry run failed: ${out.res.status} ${JSON.stringify(out.body)}`);
+    assert(out.body?.dryRun === true, `retention purge should default to dryRun: ${JSON.stringify(out.body)}`);
 
     const form = new URLSearchParams();
-    form.set("From", "whatsapp:+49100000004");
+    form.set("From", "whatsapp:+491****0004");
     form.set("Body", "Hi");
     out = await json("/webhook/whatsapp", { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body: form });
     assert(out.res.status === 403, `unsigned Twilio webhook should be 403, got ${out.res.status}`);
@@ -151,6 +166,10 @@ async function main() {
     assert(out.body?.booked === 1, `final metrics booked should be 1: ${JSON.stringify(out.body)}`);
     assert(out.body?.estimatedBookedRevenueCents === 4500, `final booked revenue mismatch: ${JSON.stringify(out.body)}`);
     assert(out.body?.byChannel?.whatsapp === 1, `channel attribution mismatch: ${JSON.stringify(out.body)}`);
+
+    const calls = await json("/privacy/export", authJson({ phone: "+491****0003" }));
+    assert(calls.res.ok, `call export failed: ${calls.res.status} ${JSON.stringify(calls.body)}`);
+    assert(calls.body?.callOutcomes?.length === 1, `duplicate provider call should only be stored once: ${JSON.stringify(calls.body)}`);
 
     console.log("SERVER_BATTLETEST_OK");
     console.log(JSON.stringify({ metrics: out.body }, null, 2));

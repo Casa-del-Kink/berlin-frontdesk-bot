@@ -14,11 +14,11 @@ This repo still defaults to the credential-free JSON store because it is useful 
 
 For a multi-worker paid pilot, replace the current JSON persistence internals with a Postgres-backed implementation that preserves the exported store API:
 
-- `addMessage(phone, role, content)` with capped per-phone history.
+- `addMessage(phone, role, content)` with capped per-phone history and `created_at` timestamps for retention.
 - `addLead(lead)` with a unique constraint on `idempotency_key` when present.
 - `leadByIdempotencyKey(idempotencyKey)` and `bookedLead(phone, service, startISO)` for safe retries.
-- `addCallOutcome(outcome)` with a unique `call_id` when provider IDs are available.
-- `metricsOn(dateISO, tz)`, `exportSubjectData(phone)`, and `deleteSubjectData(phone)`.
+- `addCallOutcome(outcome)` with a unique `call_id` when provider IDs are available, returning an idempotent replay on duplicate provider retries.
+- `metricsOn(dateISO, tz)`, `exportSubjectData(phone)`, `deleteSubjectData(phone)`, and `purgeOldData(maxAgeDays, dryRun)`.
 - `withBookingLock(key, fn)` backed by a transaction-level lock, e.g. `pg_advisory_xact_lock(hashtext(key))`, or a `booking_locks` table with `SELECT ... FOR UPDATE`.
 
 Suggested tables:
@@ -61,3 +61,5 @@ create table call_outcomes (
 ## Pilot gate
 
 Do not run multiple bot workers against the JSON store. JSON is acceptable for single-process demos only. For a paid pilot, use Postgres or force one process/one worker and accept the operational risk explicitly.
+
+Before live customer traffic, set a retention policy (`DATA_RETENTION_DAYS`, e.g. 90) and run the protected retention endpoint first with `dryRun: true`, then with `dryRun: false` only after the deletion counts are expected. Legacy JSON messages without timestamps are retained until subject delete or migration because the app cannot prove their age.

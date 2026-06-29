@@ -6,7 +6,18 @@ import { loadClient, validateRuntimeEnv } from "./config.js";
 import { buildSystemPrompt } from "./prompt.js";
 import { runConversation } from "./llm.js";
 import { toolDefs, makeHandlers, runTool } from "./tools.js";
-import { addCallOutcome, addMessage, callOutcomesOn, deleteSubjectData, exportSubjectData, getHistory, leadsOn, metricsOn, type CallOutcome } from "./store.js";
+import {
+  addCallOutcome,
+  addMessage,
+  callOutcomesOn,
+  deleteSubjectData,
+  exportSubjectData,
+  getHistory,
+  leadsOn,
+  metricsOn,
+  purgeOldData,
+  type CallOutcome,
+} from "./store.js";
 import { sendWhatsapp } from "./whatsapp.js";
 
 const cfg = loadClient();
@@ -56,6 +67,16 @@ function callStatus(value: unknown): CallOutcome["status"] {
   return allowed.includes(status as CallOutcome["status"]) ? (status as CallOutcome["status"]) : "answered";
 }
 
+function retentionDays(value: unknown): number {
+  const days = Number(value || process.env.DATA_RETENTION_DAYS || 90);
+  if (!Number.isFinite(days) || days <= 0) throw new Error("maxAgeDays must be a positive number");
+  return days;
+}
+
+function booleanBody(value: unknown) {
+  return value === true || value === "true" || value === "1";
+}
+
 async function alertOwner(message: string) {
   if (cfg.ownerWhatsapp) await sendWhatsapp(cfg.ownerWhatsapp, message);
   else console.log(`[owner alert:DRYRUN] ${message}`);
@@ -97,13 +118,13 @@ app.post("/webhook/voice/post-call", async (req, res) => {
     recordingUrl: req.body.recordingUrl ? String(req.body.recordingUrl) : undefined,
     createdAt: new Date().toISOString(),
   };
-  addCallOutcome(outcome);
+  const stored = addCallOutcome(outcome);
 
-  if (outcome.status === "needs_followup" || outcome.status === "missed" || outcome.status === "voicemail" || outcome.status === "failed") {
+  if (stored.inserted && (outcome.status === "needs_followup" || outcome.status === "missed" || outcome.status === "voicemail" || outcome.status === "failed")) {
     await alertOwner(`Phone follow-up needed: ${phone} · ${outcome.status}${outcome.summary ? ` · ${outcome.summary}` : ""}`);
   }
 
-  res.json({ ok: true, outcome });
+  res.json({ ok: true, outcome: stored.outcome, idempotentReplay: !stored.inserted });
 });
 
 // GDPR-support endpoints for first pilots: export/delete one customer's stored conversation and lead data.
@@ -121,6 +142,16 @@ app.post("/privacy/delete", (req, res) => {
   if (!validateToolRequest(req)) return res.status(401).json({ error: "Unauthorized" });
   try {
     res.json(deleteSubjectData(subjectPhone(req)));
+  } catch (e: any) {
+    res.status(400).json({ error: String(e?.message ?? e) });
+  }
+});
+
+// GDPR/data-minimization helper for first pilots. Protected operator endpoint; dryRun defaults true.
+app.post("/privacy/retention/purge", (req, res) => {
+  if (!validateToolRequest(req)) return res.status(401).json({ error: "Unauthorized" });
+  try {
+    res.json(purgeOldData(retentionDays(req.body?.maxAgeDays), req.body?.dryRun === undefined ? true : booleanBody(req.body.dryRun)));
   } catch (e: any) {
     res.status(400).json({ error: String(e?.message ?? e) });
   }
