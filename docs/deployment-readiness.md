@@ -38,6 +38,8 @@ SERVER_TOOL_TOKEN=<long random bearer token>
 DATA_RETENTION_DAYS=30
 # Internal hosted demo only, when owner alerts are intentionally console/log-only:
 # OWNER_ALERT_LOG_ONLY_ACCEPTED=true
+# Real client pilot only, after a successful protected alert test:
+# OWNER_ALERT_TESTED_AT=2026-06-30T10:15:00+02:00
 ```
 
 For a real client pilot, configure `ownerWhatsapp` in the client YAML instead of relying on log-only alerts.
@@ -174,6 +176,18 @@ Metrics and operator/privacy endpoints are also bearer-protected:
 curl -H "Authorization: Bearer $SERVER_TOOL_TOKEN" https://<public-host>/metrics/today
 ```
 
+Owner alert route test before a live pilot:
+
+```bash
+curl -X POST \
+  -H "Authorization: Bearer $SERVER_TOOL_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"message":"Tilda owner alert test"}' \
+  https://<public-host>/operator/alert-test
+```
+
+Expected: the configured owner receives the test alert and the response includes `ownerAlert.sent=true`. Only then set `OWNER_ALERT_TESTED_AT` in the hosted runtime. If `ownerAlert.error` is present, fix Twilio/owner destination first and do not treat the pilot as ready.
+
 ## Webhook rules
 
 - `TWILIO_WEBHOOK_BASE_URL` must exactly match the public HTTPS URL Twilio signs.
@@ -198,6 +212,7 @@ Not allowed for live traffic:
 - missing `SERVER_TOOL_TOKEN`
 - `SKIP_TWILIO_SIGNATURE_VALIDATION=true`
 - empty `ownerWhatsapp`, unless this is an internal hosted demo and `OWNER_ALERT_LOG_ONLY_ACCEPTED=true` is intentionally set
+- missing `OWNER_ALERT_TESTED_AT` for a real client pilot with WhatsApp owner alerts
 
 ## Logs and PII
 

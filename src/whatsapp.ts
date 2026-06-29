@@ -12,6 +12,7 @@ function client() {
 // `to` must be in "whatsapp:+49..." form. Returns true if sent.
 export async function sendWhatsapp(to: string, body: string): Promise<boolean> {
   if (!to) return false;
+  if (process.env.FORCE_WHATSAPP_SEND_FAILURE === "true") throw new Error("FORCE_WHATSAPP_SEND_FAILURE is set");
   if (!process.env.TWILIO_ACCOUNT_SID) {
     console.log(`[whatsapp:DRYRUN -> ${to}] ${body}`);
     return false;

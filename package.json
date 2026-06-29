@@ -19,6 +19,7 @@
     "voice:smoke": "tsx src/voice-agent-tool-smoke.ts",
     "voice:contract": "tsx src/elevenlabs-agent-contract.ts",
     "voice:contract:smoke": "tsx src/voice-agent-contract-smoke.ts",
+    "owner-alert:smoke": "tsx src/owner-alert-failure-smoke.ts",
     "demo:fake": "tsx src/fake-provider-demo.ts",
     "deployment:preflight": "tsx src/deployment-preflight.ts",
     "deployment:preflight:smoke": "tsx src/deployment-preflight-smoke.ts",

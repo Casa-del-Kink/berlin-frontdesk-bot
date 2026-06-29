@@ -125,6 +125,9 @@ async function main() {
     let out = await json("/metrics/today");
     assert(out.res.status === 401, `metrics without bearer should be 401, got ${out.res.status}`);
 
+    out = await json("/operator/alert-test", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ message: "Unauthorized alert test" }) });
+    assert(out.res.status === 401, `alert test without bearer should be 401, got ${out.res.status}`);
+
     out = await json("/readiness/live-pilot");
     assert(out.res.status === 401, `readiness without bearer should be 401, got ${out.res.status}`);
 
@@ -144,6 +147,10 @@ async function main() {
     out = await json("/metrics/today", { headers: { authorization: `Bearer ${TOKEN}` } });
     assert(out.res.ok, `authorized metrics failed: ${out.res.status}`);
     assert(out.body?.booked === 0, "fresh battletest state should start with 0 bookings");
+
+    out = await json("/operator/alert-test", authJson({ message: "Server battletest owner alert route" }));
+    assert(out.res.ok, `authorized alert test failed: ${out.res.status} ${JSON.stringify(out.body)}`);
+    assert(out.body?.ownerAlert?.attempted === false, `demo alert test should be log-only without ownerWhatsapp: ${JSON.stringify(out.body)}`);
 
     out = await json(
       "/tools/check_availability",

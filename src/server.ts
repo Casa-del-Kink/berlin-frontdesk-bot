@@ -21,6 +21,7 @@ import {
   type CallOutcome,
 } from "./store.js";
 import { sendWhatsapp } from "./whatsapp.js";
+import { alertOwner as sendOwnerAlert } from "./owner-alerts.js";
 
 const cfg = loadClient();
 const app = express();
@@ -86,8 +87,7 @@ function booleanBody(value: unknown) {
 }
 
 async function alertOwner(message: string) {
-  if (cfg.ownerWhatsapp) await sendWhatsapp(cfg.ownerWhatsapp, message);
-  else console.log(`[owner alert:DRYRUN] ${message}`);
+  return sendOwnerAlert(cfg, message);
 }
 
 // Shared "one brain" endpoint for WhatsApp, ElevenLabs server tools, or internal tests.
@@ -108,6 +108,15 @@ app.get("/metrics/today", async (req, res) => {
   if (!validateToolRequest(req)) return res.status(401).json({ error: "Unauthorized" });
   const today = DateTime.now().setZone(cfg.timezone).toISODate()!;
   res.json(await metricsOn(today, cfg.timezone));
+});
+
+// Operator-only owner-alert proof path. Useful before live pilots to verify the alert route
+// without booking a fake customer appointment.
+app.post("/operator/alert-test", async (req, res) => {
+  if (!validateToolRequest(req)) return res.status(401).json({ error: "Unauthorized" });
+  const message = String(req.body?.message || `Tilda alert test for ${cfg.name}`);
+  const result = await alertOwner(message.slice(0, 1000));
+  res.json({ ok: true, ownerAlert: result });
 });
 
 // Voice/phone post-call webhook for ElevenLabs/Twilio-style call summaries.
@@ -214,8 +223,7 @@ async function dailySummary() {
   ];
   const msg = lines.join("\n");
 
-  if (cfg.ownerWhatsapp) sendWhatsapp(cfg.ownerWhatsapp, msg);
-  else console.log("[daily summary]\n" + msg);
+  await alertOwner(msg);
 }
 
 cron.schedule("0 20 * * *", dailySummary, { timezone: cfg.timezone });

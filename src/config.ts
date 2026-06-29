@@ -124,6 +124,12 @@ export function validateLivePilotReadiness(cfg?: Client): LivePilotReadiness {
       detail: "Client YAML should set ownerWhatsapp so bookings, follow-ups, and daily summaries reach the operator. For internal hosted demos only, set OWNER_ALERT_LOG_ONLY_ACCEPTED=true to accept console-only alerts.",
     },
     {
+      name: "owner alert route tested",
+      ok: process.env.OWNER_ALERT_LOG_ONLY_ACCEPTED === "true" || (Boolean(cfg?.ownerWhatsapp?.trim()) && hasEnv("OWNER_ALERT_TESTED_AT")),
+      severity: "blocker",
+      detail: "Before live traffic, run the protected /operator/alert-test route and set OWNER_ALERT_TESTED_AT to the successful test timestamp in the hosted runtime.",
+    },
+    {
       name: "production store",
       ok: storeBackend !== "json",
       severity: "warning",

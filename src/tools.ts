@@ -4,7 +4,7 @@ import { findService } from "./config.js";
 import { createEvent, findEventByIdempotencyKey, findMatchingEvent, getBusy } from "./calendar.js";
 import { computeFreeSlots } from "./slots.js";
 import { addLead, bookedLead, leadByIdempotencyKey, withBookingLock, type LeadChannel } from "./store.js";
-import { sendWhatsapp } from "./whatsapp.js";
+import { alertOwner } from "./owner-alerts.js";
 
 // Tool definitions in OpenAI format (compatible with OpenRouter).
 export const toolDefs = [
@@ -66,11 +66,6 @@ type Handler = (args: any) => Promise<unknown>;
 function overlapsBusy(busy: { start: string; end: string }[], start: DateTime, end: DateTime, tz: string) {
   const requested = Interval.fromDateTimes(start, end);
   return busy.some((b) => requested.overlaps(Interval.fromDateTimes(DateTime.fromISO(b.start).setZone(tz), DateTime.fromISO(b.end).setZone(tz))));
-}
-
-async function alertOwner(cfg: Client, message: string) {
-  if (cfg.ownerWhatsapp) await sendWhatsapp(cfg.ownerWhatsapp, message);
-  else console.log(`[owner alert:DRYRUN] ${message}`);
 }
 
 function normalizedChannel(channel: unknown, fallback: LeadChannel): LeadChannel {
