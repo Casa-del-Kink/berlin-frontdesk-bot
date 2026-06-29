@@ -23,6 +23,7 @@ CHECK_FILES = [
     "docs/tilda-priority-plan.md",
     "docs/tilda-voice-style.md",
     "docs/voice-phone-readiness.md",
+    "src/fake-provider-demo.ts",
     "src/prompt.ts",
 ]
 

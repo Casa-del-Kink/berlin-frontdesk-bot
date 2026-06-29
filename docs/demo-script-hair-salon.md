@@ -150,10 +150,13 @@ Every spoken or written Tilda line must pass:
 Use this when external credentials are missing:
 
 ```bash
+npm run demo:fake
 npm run first-test:smoke
 npm run voice:smoke
 npm run server:battletest
 ```
+
+`npm run demo:fake` is the founder-facing dry run. It starts the real server with fake calendar and local JSON state, then prints a readable booking, follow-up, WhatsApp continuation, owner-alert, metrics, and privacy-export proof.
 
 ## Live-provider command targets
 

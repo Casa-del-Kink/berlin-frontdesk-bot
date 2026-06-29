@@ -74,3 +74,28 @@
   - The existing successful voice flow still books, registers follow-up, records post-call outcomes, validates idempotency, and counts phone metrics.
 - Blocker: no new live voice/telephony credentials used. Live telephony remains dependent on selected provider access and configuration.
 - Next chunk: build the full fake-provider hair-salon demo runner or add credential-safe live-provider demo command documentation.
+## 2026-06-29T15:20:14Z
+
+- Branch: `hermes/voice-first-compliance-correction`
+- HEAD before: `3800380`
+- HEAD after: this local commit (see `git rev-parse HEAD` after commit)
+- Chunk selected: full fake-provider Berlin hair-salon demo runner, not another tiny assertion-only increment.
+- Files changed:
+  - `src/fake-provider-demo.ts`
+  - `package.json`
+  - `scripts/check-style-guard.py`
+  - `docs/demo-script-hair-salon.md`
+  - `docs/tilda-priority-plan.md`
+  - `docs/tilda-autonomous-log.md`
+- Commands run:
+  - `npm run demo:fake` -> `DEMO_FAKE_HAIR_SALON_OK`
+- Verification added:
+  - Real Express server starts with fake calendar and local JSON store.
+  - Phone booking path checks availability, books Laura Schneider, verifies owner alert once, and proves booked revenue.
+  - Phone colour follow-up registers Mina Hoffmann, verifies retry idempotency, and verifies owner alert once.
+  - Voice post-call follow-up stores a call summary for privacy export.
+  - WhatsApp continuation checks availability and creates a WhatsApp follow-up lead.
+  - Metrics prove 3 inquiries, 1 booking, 2 follow-ups, €45 booked value, €162 pipeline value, and phone plus WhatsApp channel attribution.
+  - Privacy export proves demo booking and follow-up records are retrievable.
+- Blocker: no live voice or telephony credentials used; this is the full no-credential founder demo path.
+- Next chunk: add credential-safe live demo command documentation or visible-proof mode for the dev Google Calendar smoke.

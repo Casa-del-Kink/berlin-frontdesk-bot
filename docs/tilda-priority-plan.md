@@ -256,15 +256,15 @@ Tasks:
 
 - Create `docs/demo-script-hair-salon.md`.
 - Create or update one demo client YAML that is realistic for Berlin hair salons.
-- Add scripts or commands to run the full fake-provider demo locally.
+- Add scripts or commands to run the full fake-provider demo locally. Done via `npm run demo:fake`.
 - Add commands for live-provider demo once credentials exist.
 - Ensure all demo copy follows `docs/tilda-voice-style.md`.
 
 Acceptance criteria:
 
-- A reviewer can run the fake-provider demo without external credentials.
+- A reviewer can run the fake-provider demo without external credentials via `npm run demo:fake`.
 - A reviewer can see exactly what credentials are needed for the live demo.
-- Demo output proves booking, follow-up, owner alert, and metrics.
+- Demo output proves booking, follow-up, WhatsApp continuation, owner alert, metrics, and privacy export.
 - The customer-facing language is short, human, and free of AI slop.
 
 ### P5 - Compliance pack completion for actual MVP
@@ -332,7 +332,8 @@ If no new credentials are available, implement these in order:
 6. Add deterministic voice HTTP smoke test if not already covered by server battletest. Done via `npm run voice:smoke`.
 7. Tighten owner-alert assertions for voice booking and follow-up paths. Done.
 8. Add voice-facing HTTP smoke coverage for missing or wrong bearer auth on server tool, post-call, and metrics endpoints. Done.
-9. Next credential-free chunk: build the full fake-provider hair-salon demo runner or add live-provider demo command documentation that stays credential-safe.
+9. Build the full fake-provider hair-salon demo runner. Done via `npm run demo:fake`.
+10. Next credential-free chunk: add live-provider demo command documentation that stays credential-safe, or add visible-proof mode for the dev Google Calendar smoke.
 
 P2 is no longer an infrastructure blocker. Re-run the Supabase Postgres smoke only after schema/backend changes or when moving the runtime to a new host.
 
