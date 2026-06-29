@@ -99,11 +99,32 @@ Run the same smoke test and expect the same result.
 
 ## Current status
 
-Supabase is selected as primary, but no Supabase database URL is configured in this runtime yet.
+Supabase is selected as primary.
+
+Project ref:
+
+```text
+dicxsxmdyjleigelwaya
+```
+
+`supabase init` has been run in the repo and created `supabase/config.toml`.
+
+`supabase link --project-ref dicxsxmdyjleigelwaya` is blocked until this runtime has Supabase CLI auth. Non-interactive login needs either:
+
+```bash
+SUPABASE_ACCESS_TOKEN='...'
+```
+
+or:
+
+```bash
+npx supabase@latest login --token '...'
+```
 
 Blocked on:
 
-- Tilda dev Supabase project or database URL
+- Supabase access token for CLI linking
+- Supabase database URL or database password for hosted Postgres smoke, depending on the chosen connection method
 
 Not blocked:
 
@@ -111,6 +132,7 @@ Not blocked:
 - Postgres backend implementation
 - smoke test command
 - schema creation
+- Supabase CLI project initialization
 
 ## Pilot rule
 
