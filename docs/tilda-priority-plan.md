@@ -229,7 +229,7 @@ Acceptance criteria:
 
 - A voice agent can check slots, book, register follow-up, and post call summary through the same backend as WhatsApp.
 - A simulated call path is tested without provider credentials.
-- `npm run voice:smoke` exercises the real HTTP tool endpoints with fake providers and validates phone-channel metrics, retry idempotency, and exactly-once owner alerts for booking/follow-up paths.
+- `npm run voice:smoke` exercises the real HTTP tool endpoints with fake providers and validates bearer-auth rejection, phone-channel metrics, retry idempotency, and exactly-once owner alerts for booking/follow-up paths.
 - Provider-specific live setup steps are documented separately from generic architecture.
 - Call transcript or recording storage is off by default unless explicitly enabled and reviewed.
 
@@ -330,7 +330,9 @@ If no new credentials are available, implement these in order:
 4. Add `docs/demo-script-hair-salon.md`. Done.
 5. Add `google-calendar:smoke` script skeleton that fails clearly when credentials are missing. Done.
 6. Add deterministic voice HTTP smoke test if not already covered by server battletest. Done via `npm run voice:smoke`.
-7. Next credential-free chunk: tighten owner-alert assertions for voice booking and follow-up paths, or add a small HTTP smoke that validates missing bearer auth on each voice tool endpoint.
+7. Tighten owner-alert assertions for voice booking and follow-up paths. Done.
+8. Add voice-facing HTTP smoke coverage for missing or wrong bearer auth on server tool, post-call, and metrics endpoints. Done.
+9. Next credential-free chunk: build the full fake-provider hair-salon demo runner or add live-provider demo command documentation that stays credential-safe.
 
 P2 is no longer an infrastructure blocker. Re-run the Supabase Postgres smoke only after schema/backend changes or when moving the runtime to a new host.
 

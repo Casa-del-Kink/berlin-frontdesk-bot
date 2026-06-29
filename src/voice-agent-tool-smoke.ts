@@ -96,7 +96,22 @@ async function main() {
   try {
     await waitForHealth();
 
-    let out = await json("/tools/check_availability", authJson({ phone: "+491****7001", args: { service: "Damenhaarschnitt", from: "2026-07-01", days: 3 } }));
+    let out = await json("/tools/check_availability", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ phone: "+491****7001", args: { service: "Damenhaarschnitt" } }) });
+    assert(out.res.status === 401, `voice availability without bearer should be 401: ${out.res.status} ${JSON.stringify(out.body)}`);
+
+    out = await json("/tools/book_appointment", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ phone: "+491****7001", args: { name: "Laura Schneider", service: "Damenhaarschnitt" } }) });
+    assert(out.res.status === 401, `voice booking without bearer should be 401: ${out.res.status} ${JSON.stringify(out.body)}`);
+
+    out = await json("/tools/register_lead", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ phone: "+491****7002", args: { name: "Mina Hoffmann", service: "Färben & Strähnen" } }) });
+    assert(out.res.status === 401, `voice lead without bearer should be 401: ${out.res.status} ${JSON.stringify(out.body)}`);
+
+    out = await json("/webhook/voice/post-call", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ callId: "voice-smoke-unauthorized", phone: "+491****7003", status: "needs_followup" }) });
+    assert(out.res.status === 401, `voice post-call without bearer should be 401: ${out.res.status} ${JSON.stringify(out.body)}`);
+
+    out = await json("/metrics/today", { headers: { authorization: "Bearer wrong-token" } });
+    assert(out.res.status === 401, `voice metrics with wrong bearer should be 401: ${out.res.status} ${JSON.stringify(out.body)}`);
+
+    out = await json("/tools/check_availability", authJson({ phone: "+491****7001", args: { service: "Damenhaarschnitt", from: "2026-07-01", days: 3 } }));
     assert(out.res.ok, `voice availability failed: ${out.res.status} ${JSON.stringify(out.body)}`);
     assert(Array.isArray(out.body?.slots) && out.body.slots.length >= 2, `voice availability should return at least two slots: ${JSON.stringify(out.body)}`);
     const selectedSlot = out.body.slots[0].iso;

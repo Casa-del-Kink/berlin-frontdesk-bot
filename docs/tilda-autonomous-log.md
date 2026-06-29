@@ -50,3 +50,27 @@
   - Post-call follow-up retry stores one call outcome.
 - Blocker: no new live voice/telephony credentials used. Live telephony remains dependent on selected provider access and configuration. Local-shell Supabase REST smoke env is not configured, but gateway admin smoke passes.
 - Next chunk: add explicit unauthorized-request coverage for each voice-facing endpoint, or build the full fake-provider hair-salon demo runner.
+
+## 2026-06-29T15:01:41Z
+
+- Branch: `hermes/voice-first-compliance-correction`
+- HEAD before: `9a5861fd95c82e13203a800b3cb90879aa5b5037`
+- HEAD after: this local commit (see `git rev-parse HEAD` after commit)
+- Chunk selected: add explicit bearer-auth rejection coverage to the credential-free voice-agent HTTP smoke.
+- Files changed:
+  - `src/voice-agent-tool-smoke.ts`
+  - `docs/tilda-priority-plan.md`
+  - `docs/tilda-autonomous-log.md`
+- Commands run:
+  - `npm run voice:smoke` -> `VOICE_AGENT_TOOL_SMOKE_OK`
+  - `npm run typecheck` -> pass
+  - `npm run style:guard` -> `STYLE_GUARD_OK`
+  - `npm run check` -> pass
+  - `npm run server:battletest` -> `SERVER_BATTLETEST_OK`
+  - `npm run first-test:smoke` -> `FIRST_TEST_SMOKE_OK`
+- Verification added:
+  - Missing bearer auth returns `401` for `check_availability`, `book_appointment`, `register_lead`, and voice post-call webhook.
+  - Wrong bearer auth returns `401` for the metrics endpoint.
+  - The existing successful voice flow still books, registers follow-up, records post-call outcomes, validates idempotency, and counts phone metrics.
+- Blocker: no new live voice/telephony credentials used. Live telephony remains dependent on selected provider access and configuration.
+- Next chunk: build the full fake-provider hair-salon demo runner or add credential-safe live-provider demo command documentation.
