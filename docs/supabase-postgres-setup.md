@@ -130,7 +130,9 @@ Smoke command:
 SUPABASE_URL='https://dicxsxmdyjleigelwaya.supabase.co' SUPABASE_SERVICE_ROLE_KEY='***' npm run supabase:admin:smoke
 ```
 
-This checks that the service role key can query Supabase through the API. It does not replace the direct Postgres smoke below, which still verifies the app's Postgres backend, migrations, advisory locks, retention, and idempotency.
+This checks that the service role key can query Supabase through the API. If the `leads` table does not exist yet, it reports `SUPABASE_ADMIN_SMOKE_OK_SCHEMA_PENDING`, because API auth worked but the direct Postgres migration smoke has not created the app schema yet.
+
+It does not replace the direct Postgres smoke below, which still verifies the app's Postgres backend, migrations, advisory locks, retention, and idempotency.
 
 ## Supabase CLI status
 
