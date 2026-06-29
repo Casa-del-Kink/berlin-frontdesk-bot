@@ -104,6 +104,7 @@ Draft-only planning notes; validate with lawyer/Datenschutz review before real c
 - Avoid medical/dental/health triage. For med-spa/aesthetics, route risk, contraindication, pain, infection, pregnancy, medication, or emergency language to a human.
 - Keep retention short for transcripts/recordings; prefer summaries over raw recordings for the first salon pilot.
 - Ensure provider DPAs/AVVs are in place for Twilio/ElevenLabs/transcription/calendar vendors before production.
+- Use `docs/compliance-live-pilot-pack.md` as the launch checklist for exact disclosure text, privacy contact, AVV/DPA register, and retention decisions.
 
 ## Daytime review before enabling phone
 

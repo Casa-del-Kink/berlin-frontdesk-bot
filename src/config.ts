@@ -16,6 +16,8 @@ export interface Client {
   ownerWhatsapp: string;
   bookingFallbackUrl?: string;
   consentText?: string;
+  aiDisclosureText?: string;
+  privacyContact?: string;
   handoffKeywords?: string[];
   hours: { days: number[]; open: string; close: string };
   services: Service[];
@@ -40,6 +42,114 @@ export function validateRuntimeEnv() {
   }
   if (!process.env.GOOGLE_SA_JSON) warnings.push("GOOGLE_SA_JSON missing: calendar availability/booking tools will fail until set.");
   return warnings;
+}
+
+export interface ReadinessGate {
+  name: string;
+  ok: boolean;
+  severity: "blocker" | "warning";
+  detail: string;
+}
+
+export interface LivePilotReadiness {
+  ok: boolean;
+  generatedAt: string;
+  gates: ReadinessGate[];
+}
+
+function hasEnv(name: string) {
+  return Boolean(process.env[name]?.trim());
+}
+
+function positiveNumberEnv(name: string) {
+  const value = Number(process.env[name]);
+  return Number.isFinite(value) && value > 0;
+}
+
+export function validateLivePilotReadiness(cfg?: Client): LivePilotReadiness {
+  const storeBackend = process.env.STORE_BACKEND || "json";
+  const gates: ReadinessGate[] = [
+    {
+      name: "operator auth",
+      ok: hasEnv("SERVER_TOOL_TOKEN"),
+      severity: "blocker",
+      detail: "SERVER_TOOL_TOKEN must be set so tool, privacy, metrics, and readiness endpoints are bearer-protected.",
+    },
+    {
+      name: "twilio signature validation",
+      ok: process.env.SKIP_TWILIO_SIGNATURE_VALIDATION !== "true",
+      severity: "blocker",
+      detail: "SKIP_TWILIO_SIGNATURE_VALIDATION must not be true outside local testing.",
+    },
+    {
+      name: "twilio credentials",
+      ok: hasEnv("TWILIO_ACCOUNT_SID") && hasEnv("TWILIO_AUTH_TOKEN") && hasEnv("TWILIO_WHATSAPP_FROM"),
+      severity: "blocker",
+      detail: "TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_WHATSAPP_FROM are required for live WhatsApp and webhook validation.",
+    },
+    {
+      name: "llm provider",
+      ok: hasEnv("OPENROUTER_API_KEY"),
+      severity: "blocker",
+      detail: "OPENROUTER_API_KEY is required before real customer conversations.",
+    },
+    {
+      name: "calendar provider",
+      ok: hasEnv("GOOGLE_SA_JSON") && process.env.USE_FAKE_CALENDAR !== "true",
+      severity: "blocker",
+      detail: "GOOGLE_SA_JSON must be set and USE_FAKE_CALENDAR must not be true for live booking.",
+    },
+    {
+      name: "retention policy",
+      ok: positiveNumberEnv("DATA_RETENTION_DAYS"),
+      severity: "blocker",
+      detail: "DATA_RETENTION_DAYS must be a positive number and matched to the client privacy notice / DPA.",
+    },
+    {
+      name: "AI disclosure text",
+      ok: Boolean(cfg?.aiDisclosureText?.trim()),
+      severity: "blocker",
+      detail: "Client YAML must set aiDisclosureText so the first customer message clearly says the assistant is digital/AI.",
+    },
+    {
+      name: "privacy contact",
+      ok: Boolean(cfg?.privacyContact?.trim()),
+      severity: "blocker",
+      detail: "Client YAML must set privacyContact for data export/delete or privacy questions before live traffic.",
+    },
+    {
+      name: "production store",
+      ok: storeBackend !== "json",
+      severity: "warning",
+      detail: `STORE_BACKEND is ${storeBackend}; JSON is single-process demo storage. Use Postgres or explicitly accept one-worker operational risk.`,
+    },
+    {
+      name: "public webhook base",
+      ok: hasEnv("TWILIO_WEBHOOK_BASE_URL"),
+      severity: "warning",
+      detail: "TWILIO_WEBHOOK_BASE_URL should match the public HTTPS webhook URL so signature validation uses the same URL Twilio signed.",
+    },
+    {
+      name: "AVV/DPA review",
+      ok: process.env.COMPLIANCE_DPA_REVIEWED === "true",
+      severity: "warning",
+      detail: "Set COMPLIANCE_DPA_REVIEWED=true only after AVV/DPA/subprocessor review for hosting, messaging, LLM, calendar, and voice vendors.",
+    },
+  ];
+
+  return {
+    ok: gates.every((gate) => gate.ok || gate.severity === "warning"),
+    generatedAt: new Date().toISOString(),
+    gates,
+  };
+}
+
+export function assertLivePilotReadiness(cfg?: Client) {
+  const readiness = validateLivePilotReadiness(cfg);
+  if (!readiness.ok) {
+    const blockers = readiness.gates.filter((gate) => !gate.ok && gate.severity === "blocker").map((gate) => `${gate.name}: ${gate.detail}`);
+    throw new Error(`Live pilot readiness blockers:\n- ${blockers.join("\n- ")}`);
+  }
 }
 
 // Loose match by name (what the customer types won't be exact).

@@ -2,7 +2,7 @@ import express from "express";
 import cron from "node-cron";
 import twilio from "twilio";
 import { DateTime } from "luxon";
-import { loadClient, validateRuntimeEnv } from "./config.js";
+import { assertLivePilotReadiness, loadClient, validateLivePilotReadiness, validateRuntimeEnv } from "./config.js";
 import { buildSystemPrompt } from "./prompt.js";
 import { runConversation } from "./llm.js";
 import { toolDefs, makeHandlers, runTool } from "./tools.js";
@@ -13,6 +13,7 @@ import {
   deleteSubjectData,
   exportSubjectData,
   getHistory,
+  getStoreBackend,
   leadsOn,
   metricsOn,
   purgeOldData,
@@ -27,9 +28,15 @@ app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 
 for (const warning of validateRuntimeEnv()) console.warn(`[config] ${warning}`);
+if (process.env.REQUIRE_LIVE_PILOT_READINESS === "true") assertLivePilotReadiness(cfg);
 
 app.get("/", (_req, res) => res.send(`OK - ${cfg.name}`));
-app.get("/health", (_req, res) => res.json({ ok: true, client: cfg.name, time: new Date().toISOString() }));
+app.get("/health", (_req, res) => res.json({ ok: true, client: cfg.name, storeBackend: getStoreBackend().name, time: new Date().toISOString() }));
+app.get("/readiness/live-pilot", (req, res) => {
+  if (!validateToolRequest(req)) return res.status(401).json({ error: "Unauthorized" });
+  const readiness = validateLivePilotReadiness(cfg);
+  res.status(readiness.ok ? 200 : 409).json(readiness);
+});
 
 function publicWebhookUrl(req: express.Request) {
   const base = process.env.TWILIO_WEBHOOK_BASE_URL;
@@ -96,10 +103,10 @@ app.post("/tools/:name", async (req, res) => {
 });
 
 // Operator-facing proof point for the narrow wedge: inquiries, bookings, and estimated recovered revenue.
-app.get("/metrics/today", (req, res) => {
+app.get("/metrics/today", async (req, res) => {
   if (!validateToolRequest(req)) return res.status(401).json({ error: "Unauthorized" });
   const today = DateTime.now().setZone(cfg.timezone).toISODate()!;
-  res.json(metricsOn(today, cfg.timezone));
+  res.json(await metricsOn(today, cfg.timezone));
 });
 
 // Voice/phone post-call webhook for ElevenLabs/Twilio-style call summaries.
@@ -118,7 +125,7 @@ app.post("/webhook/voice/post-call", async (req, res) => {
     recordingUrl: req.body.recordingUrl ? String(req.body.recordingUrl) : undefined,
     createdAt: new Date().toISOString(),
   };
-  const stored = addCallOutcome(outcome);
+  const stored = await addCallOutcome(outcome);
 
   if (stored.inserted && (outcome.status === "needs_followup" || outcome.status === "missed" || outcome.status === "voicemail" || outcome.status === "failed")) {
     await alertOwner(`Phone follow-up needed: ${phone} · ${outcome.status}${outcome.summary ? ` · ${outcome.summary}` : ""}`);
@@ -129,29 +136,29 @@ app.post("/webhook/voice/post-call", async (req, res) => {
 
 // GDPR-support endpoints for first pilots: export/delete one customer's stored conversation and lead data.
 // These are operator-only and must be bearer-protected in any real deployment via SERVER_TOOL_TOKEN.
-app.post("/privacy/export", (req, res) => {
+app.post("/privacy/export", async (req, res) => {
   if (!validateToolRequest(req)) return res.status(401).json({ error: "Unauthorized" });
   try {
-    res.json(exportSubjectData(subjectPhone(req)));
+    res.json(await exportSubjectData(subjectPhone(req)));
   } catch (e: any) {
     res.status(400).json({ error: String(e?.message ?? e) });
   }
 });
 
-app.post("/privacy/delete", (req, res) => {
+app.post("/privacy/delete", async (req, res) => {
   if (!validateToolRequest(req)) return res.status(401).json({ error: "Unauthorized" });
   try {
-    res.json(deleteSubjectData(subjectPhone(req)));
+    res.json(await deleteSubjectData(subjectPhone(req)));
   } catch (e: any) {
     res.status(400).json({ error: String(e?.message ?? e) });
   }
 });
 
 // GDPR/data-minimization helper for first pilots. Protected operator endpoint; dryRun defaults true.
-app.post("/privacy/retention/purge", (req, res) => {
+app.post("/privacy/retention/purge", async (req, res) => {
   if (!validateToolRequest(req)) return res.status(401).json({ error: "Unauthorized" });
   try {
-    res.json(purgeOldData(retentionDays(req.body?.maxAgeDays), req.body?.dryRun === undefined ? true : booleanBody(req.body.dryRun)));
+    res.json(await purgeOldData(retentionDays(req.body?.maxAgeDays), req.body?.dryRun === undefined ? true : booleanBody(req.body.dryRun)));
   } catch (e: any) {
     res.status(400).json({ error: String(e?.message ?? e) });
   }
@@ -167,14 +174,14 @@ app.post("/webhook/whatsapp", async (req, res) => {
 
   if (!from || !body) return;
   try {
-    addMessage(from, "user", body);
-    const history = getHistory(from).slice(-12);
+    await addMessage(from, "user", body);
+    const history = (await getHistory(from)).slice(-12);
     const messages = [
       { role: "system", content: buildSystemPrompt(cfg) },
       ...history.map((h) => ({ role: h.role, content: h.content })),
     ];
     const reply = await runConversation(messages, toolDefs, makeHandlers(cfg, from));
-    addMessage(from, "assistant", reply);
+    await addMessage(from, "assistant", reply);
     await sendWhatsapp(from, reply);
   } catch (e) {
     console.error("Error handling message:", e);
@@ -183,11 +190,11 @@ app.post("/webhook/whatsapp", async (req, res) => {
 });
 
 // Daily summary to the owner at 20:00 (business timezone).
-function dailySummary() {
+async function dailySummary() {
   const today = DateTime.now().setZone(cfg.timezone).toISODate()!;
-  const leads = leadsOn(today, cfg.timezone);
-  const calls = callOutcomesOn(today, cfg.timezone);
-  const metrics = metricsOn(today, cfg.timezone);
+  const leads = await leadsOn(today, cfg.timezone);
+  const calls = await callOutcomesOn(today, cfg.timezone);
+  const metrics = await metricsOn(today, cfg.timezone);
   const booked = leads.filter((l) => l.status === "booked");
   const followups = leads.filter((l) => l.status === "needs_followup");
 

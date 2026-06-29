@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { existsSync, rmSync } from "node:fs";
 import { setTimeout as sleep } from "node:timers/promises";
 
@@ -40,13 +40,23 @@ function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
 }
 
+function assertPostgresBackendRequiresDatabaseUrl() {
+  const result = spawnSync(process.execPath, ["./node_modules/.bin/tsx", "-e", "import('./src/store.ts')"], {
+    env: { ...process.env, STORE_BACKEND: "postgres", DATABASE_URL: "", POSTGRES_URL: "", STATE_FILE: "data/postgres-missing-url-test.json" },
+    encoding: "utf8",
+  });
+  const combined = `${result.stdout ?? ""}${result.stderr ?? ""}`;
+  assert(result.status !== 0, "STORE_BACKEND=postgres should fail fast when DATABASE_URL is missing");
+  assert(combined.includes("STORE_BACKEND=postgres requires DATABASE_URL"), `unexpected missing database URL error: ${combined}`);
+}
+
 async function waitForHealth() {
   const deadline = Date.now() + 15_000;
   let lastError = "not attempted";
   while (Date.now() < deadline) {
     try {
       const { res, body } = await json("/health");
-      if (res.ok && body?.ok) return;
+      if (res.ok && body?.ok && body?.storeBackend === "json") return;
       lastError = `${res.status} ${JSON.stringify(body)}`;
     } catch (e: any) {
       lastError = String(e?.message ?? e);
@@ -59,6 +69,7 @@ async function waitForHealth() {
 async function main() {
   removeIfExists(STATE_FILE);
   removeIfExists(CALENDAR_FILE);
+  assertPostgresBackendRequiresDatabaseUrl();
 
   const child = spawn(process.execPath, ["./node_modules/.bin/tsx", "src/server.ts"], {
     env: {
@@ -87,6 +98,17 @@ async function main() {
 
     let out = await json("/metrics/today");
     assert(out.res.status === 401, `metrics without bearer should be 401, got ${out.res.status}`);
+
+    out = await json("/readiness/live-pilot");
+    assert(out.res.status === 401, `readiness without bearer should be 401, got ${out.res.status}`);
+
+    out = await json("/readiness/live-pilot", { headers: { authorization: `Bearer ${TOKEN}` } });
+    assert(out.res.status === 409, `fake/missing-credential readiness should be 409, got ${out.res.status} ${JSON.stringify(out.body)}`);
+    assert(out.body?.ok === false, `readiness body should be not ok: ${JSON.stringify(out.body)}`);
+    assert(
+      Array.isArray(out.body?.gates) && out.body.gates.some((gate: any) => gate.name === "calendar provider" && gate.ok === false),
+      `readiness should flag calendar provider: ${JSON.stringify(out.body)}`,
+    );
 
     out = await json("/metrics/today", { headers: { authorization: `Bearer ${TOKEN}` } });
     assert(out.res.ok, `authorized metrics failed: ${out.res.status}`);
@@ -151,6 +173,42 @@ async function main() {
     out = await json("/privacy/retention/purge", authJson({ maxAgeDays: 30 }));
     assert(out.res.ok, `retention purge dry run failed: ${out.res.status} ${JSON.stringify(out.body)}`);
     assert(out.body?.dryRun === true, `retention purge should default to dryRun: ${JSON.stringify(out.body)}`);
+
+    const leadPhone = "whatsapp:+491****0005";
+    out = await json(
+      "/tools/register_lead",
+      authJson({
+        phone: leadPhone,
+        args: {
+          name: "Lead Retry Test",
+          service: "Damenhaarschnitt",
+          notes: "Provider retried lead registration",
+          channel: "server_tool",
+          idempotencyKey: "battle-lead-1",
+        },
+      }),
+    );
+    assert(out.res.ok && out.body?.ok === true && out.body?.idempotentReplay === false, `lead registration failed: ${out.res.status} ${JSON.stringify(out.body)}`);
+
+    out = await json(
+      "/tools/register_lead",
+      authJson({
+        phone: leadPhone,
+        args: {
+          name: "Lead Retry Test",
+          service: "Damenhaarschnitt",
+          notes: "Provider retried lead registration",
+          channel: "server_tool",
+          idempotencyKey: "battle-lead-1",
+        },
+      }),
+    );
+    assert(out.res.ok && out.body?.idempotentReplay === true, `lead retry should be idempotent: ${out.res.status} ${JSON.stringify(out.body)}`);
+
+    out = await json("/privacy/export", authJson({ phone: leadPhone }));
+    assert(out.res.ok && out.body?.leads?.length === 1, `duplicate lead retry should only store once: ${out.res.status} ${JSON.stringify(out.body)}`);
+    out = await json("/privacy/delete", authJson({ phone: leadPhone }));
+    assert(out.res.ok && out.body?.leadsDeleted === 1, `lead retry fixture cleanup failed: ${out.res.status} ${JSON.stringify(out.body)}`);
 
     const form = new URLSearchParams();
     form.set("From", "whatsapp:+491****0004");

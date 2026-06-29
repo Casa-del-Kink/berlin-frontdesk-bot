@@ -34,8 +34,9 @@ function nextOpenSlot(cfg: Client, serviceName: string, findService: Loaded["fin
 async function main() {
   // Import after env setup so fake-calendar/state files are honored by modules with top-level config.
   const { loadClient, findService } = await import("./config.js");
+  const { getCalendarProvider } = await import("./calendar.js");
   const { runTool } = await import("./tools.js");
-  const { addCallOutcome, addLead, addMessage, deleteSubjectData, exportSubjectData, metricsOn, purgeOldData } = await import("./store.js");
+  const { addCallOutcome, addLead, addMessage, deleteSubjectData, exportSubjectData, getStoreBackend, metricsOn, purgeOldData } = await import("./store.js");
 
   const cfg = loadClient();
   const phone = "whatsapp:+491****1111";
@@ -44,6 +45,8 @@ async function main() {
 
   console.log(`First-test smoke for ${cfg.name}`);
   console.log(`Mode: fake calendar (${process.env.FAKE_CALENDAR_FILE})`);
+  console.log(`Calendar provider: ${getCalendarProvider().name}`);
+  console.log(`Store backend: ${getStoreBackend().name}`);
   console.log(`Service: ${service.name}`);
   console.log(`Candidate start: ${start.toISO()}`);
 
@@ -83,8 +86,18 @@ async function main() {
     service: service.name,
     notes: "Customer wants a callback about pricing.",
     channel: "whatsapp",
+    idempotencyKey: "first-test-followup-1",
   });
   console.log("lead=", JSON.stringify(lead));
+
+  const leadReplay = await runTool(cfg, phone, "register_lead", {
+    name: "Follow Up Test",
+    service: service.name,
+    notes: "Customer wants a callback about pricing.",
+    channel: "whatsapp",
+    idempotencyKey: "first-test-followup-1",
+  });
+  console.log("lead_replay=", JSON.stringify(leadReplay));
 
   const availabilityAfter = await runTool(cfg, phone, "check_availability", {
     service: service.name,
@@ -94,13 +107,13 @@ async function main() {
   console.log("availability_after=", JSON.stringify(availabilityAfter));
 
   const today = DateTime.now().setZone(cfg.timezone).toISODate()!;
-  const metrics = metricsOn(today, cfg.timezone);
+  const metrics = await metricsOn(today, cfg.timezone);
   console.log("metrics_today=", JSON.stringify(metrics));
 
   const privacyPhone = "whatsapp:+491****2222";
-  addMessage(privacyPhone, "user", "Bitte exportiere meine Daten.");
-  addMessage(privacyPhone, "assistant", "Ich gebe das an das Team weiter.");
-  addLead({
+  await addMessage(privacyPhone, "user", "Bitte exportiere meine Daten.");
+  await addMessage(privacyPhone, "assistant", "Ich gebe das an das Team weiter.");
+  await addLead({
     phone: privacyPhone,
     name: "Privacy Test",
     service: service.name,
@@ -110,21 +123,21 @@ async function main() {
     estimatedValueCents: 0,
     createdAt: "2020-01-01T10:00:00.000+01:00",
   });
-  addCallOutcome({
+  await addCallOutcome({
     callId: "privacy-call-test",
     phone: privacyPhone,
     status: "voicemail",
     summary: "Caller asked for data deletion.",
     createdAt: "2020-01-01T10:05:00.000+01:00",
   });
-  const exported = exportSubjectData(privacyPhone);
+  const exported = await exportSubjectData(privacyPhone);
   console.log("privacy_export=", JSON.stringify(exported));
-  const deleted = deleteSubjectData(privacyPhone);
-  const afterDelete = exportSubjectData(privacyPhone);
+  const deleted = await deleteSubjectData(privacyPhone);
+  const afterDelete = await exportSubjectData(privacyPhone);
   console.log("privacy_delete=", JSON.stringify(deleted));
 
   const retentionPhone = "whatsapp:+491****4444";
-  addLead({
+  await addLead({
     phone: retentionPhone,
     name: "Retention Test",
     service: service.name,
@@ -134,25 +147,30 @@ async function main() {
     estimatedValueCents: 0,
     createdAt: "2020-01-02T10:00:00.000+01:00",
   });
-  addCallOutcome({
+  await addCallOutcome({
     callId: "retention-call-test",
     phone: retentionPhone,
     status: "voicemail",
     summary: "Old call should be purged by retention helper.",
     createdAt: "2020-01-02T10:05:00.000+01:00",
   });
-  const retentionDryRun = purgeOldData(30, true);
-  const retentionActual = purgeOldData(30, false);
-  const retentionAfter = exportSubjectData(retentionPhone);
+  const retentionDryRun = await purgeOldData(30, true);
+  const retentionActual = await purgeOldData(30, false);
+  const retentionAfter = await exportSubjectData(retentionPhone);
   console.log("retention_dry_run=", JSON.stringify(retentionDryRun));
   console.log("retention_actual=", JSON.stringify(retentionActual));
 
+  if (getCalendarProvider().name !== "fake") throw new Error("Expected first-test smoke to use fake calendar provider");
+  if (getStoreBackend().name !== "json") throw new Error("Expected first-test smoke to use JSON store backend");
   if (!(booking as any).ok) throw new Error("Expected booking to succeed");
   if (!(idempotentReplay as any).ok || !(idempotentReplay as any).idempotentReplay) {
     throw new Error("Expected same booking retry to return an idempotent replay");
   }
   if (!(doubleBooking as any).error) throw new Error("Expected double-booking guard to reject the second booking");
   if (!(lead as any).ok) throw new Error("Expected lead registration to succeed");
+  if (!(leadReplay as any).ok || !(leadReplay as any).idempotentReplay) {
+    throw new Error("Expected same lead retry to return an idempotent replay");
+  }
   if (metrics.booked !== 1 || metrics.followups !== 1) throw new Error("Expected metrics to count one booking and one follow-up");
   if (metrics.estimatedBookedRevenueCents <= 0) throw new Error("Expected booked revenue estimate to be present");
   if (metrics.byChannel.phone !== 1 || metrics.byChannel.whatsapp !== 1) throw new Error("Expected channel metrics for phone and WhatsApp");

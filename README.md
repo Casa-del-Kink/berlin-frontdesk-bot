@@ -14,9 +14,9 @@ WhatsApp (Twilio)  ──>  src/server.ts  (webhook)
                           │
                           ├─ src/llm.ts      AI loop (OpenRouter) + tool use
                           ├─ src/tools.ts    check_availability / book_appointment / register_lead
-                          ├─ src/calendar.ts Google Calendar (freebusy + create event)
+                          ├─ src/calendar.ts Calendar provider seam (fake + Google)
                           ├─ src/slots.ts    free-slot computation (pure, tested)
-                          ├─ src/store.ts    leads + conversations (atomic JSON)
+                          ├─ src/store.ts    store backend seam (atomic JSON + Postgres)
                           ├─ src/prompt.ts   system prompt built from the YAML
                           └─ src/whatsapp.ts sending (Twilio; swap to 360dialog/Meta here)
 
@@ -88,20 +88,35 @@ clients/salon-demo.yaml  ← one business = one file. Adapt = copy and edit.
   `SERVER_TOOL_TOKEN` in any non-local deployment.
 - `POST /privacy/retention/purge` supports operator-triggered retention cleanup. It defaults to
   `dryRun: true`; set `dryRun: false` deliberately after checking counts.
+- `GET /readiness/live-pilot` is a bearer-protected gate report for live-pilot blockers
+  (credentials, signature validation, fake calendar, retention policy, AI disclosure text,
+  privacy contact) and JSON-store / AVV-DPA review warnings.
+  Set `REQUIRE_LIVE_PILOT_READINESS=true` only when startup should fail on unresolved blockers.
 - Twilio webhook requests are signature-validated by default. Set `TWILIO_WEBHOOK_BASE_URL`
   to the public tunnel/domain if auto-detection does not match Twilio's URL. Use
   `SKIP_TWILIO_SIGNATURE_VALIDATION=true` only for local manual tests.
 - `POST /tools/:name` exposes the shared "one brain" tools for ElevenLabs/server-tool use.
-  Set `SERVER_TOOL_TOKEN` to require an `Authorization` bearer header.
+  Set `SERVER_TOOL_TOKEN` to require an `Authorization` bearer header. `register_lead` accepts an
+  optional `idempotencyKey` so provider retries do not duplicate follow-up leads or owner alerts.
 - `POST /webhook/voice/post-call` stores phone call outcomes and sends owner follow-up alerts
   for missed/voicemail/failed/needs-follow-up calls. Provider retries with the same `callId` are
   idempotent and do not duplicate stored outcomes or alerts. See `docs/voice-phone-readiness.md`.
 - `book_appointment` re-checks the requested interval inside an in-process booking lock before
   creating the event. Same customer/service/start retries are idempotent; different customers are
   still rejected by the double-booking guard.
+- Calendar access is behind a `CalendarProvider` seam with fake and Google implementations, so
+  future provider swaps should stay isolated in `calendar.ts`.
 - `ownerWhatsapp` empty → owner alerts print to the console (DRYRUN).
-- Data in `data/state.json` by default, written atomically. For production volume or multiple
-  server instances, swap to Postgres before paid pilot; see `docs/production-data-readiness.md`.
+- Data in `data/state.json` by default, written atomically behind a `StoreBackend` seam.
+  Use `STORE_BACKEND=json` for local demos/tests. Use `STORE_BACKEND=postgres` plus `DATABASE_URL`
+  or `POSTGRES_URL` for production volume or multiple server instances. The Postgres backend
+  creates its tables/indexes on startup, preserves idempotent booking/lead/call retries, supports
+  export/delete/retention operations, and uses Postgres advisory locks for booking critical sections.
+  Run `npm run postgres:smoke` with a test `DATABASE_URL` before enabling it for a pilot; see
+  `docs/production-data-readiness.md`.
 - For production with clinics (health data) → swap Twilio for **360dialog** (German BSP,
   DPA/GDPR) by touching only `whatsapp.ts`.
+- Before real customer traffic, complete the German live-pilot compliance checklist in
+  `docs/compliance-live-pilot-pack.md`; it includes AI disclosure, privacy notice snippets,
+  AVV/DPA subprocessor register, retention choices, and voice recording/transcription cautions.
 - Strategy, scoping and all product decisions live in `PROJECT.md`.
