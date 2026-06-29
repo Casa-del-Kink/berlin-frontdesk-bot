@@ -113,7 +113,17 @@ async function main() {
     out = await json(
       "/tools/book_appointment",
       authJson({
-        phone: "whatsapp:+49100000002",
+        phone: "whatsapp:+491****0001",
+        args: { name: "Battle Test", service: "Damenhaarschnitt", start: "2026-07-01T10:00:00+02:00", channel: "whatsapp" },
+      }),
+    );
+    assert(out.res.ok, `idempotent retry failed: ${out.res.status} ${JSON.stringify(out.body)}`);
+    assert(out.body?.ok === true && out.body?.idempotentReplay === true, `same booking retry should be idempotent: ${JSON.stringify(out.body)}`);
+
+    out = await json(
+      "/tools/book_appointment",
+      authJson({
+        phone: "whatsapp:+491****0002",
         args: { name: "Double Test", service: "Damenhaarschnitt", start: "2026-07-01T10:00:00+02:00", channel: "phone" },
       }),
     );

@@ -12,6 +12,7 @@ interface FakeCalendarState {
     start: string;
     end: string;
     tz: string;
+    idempotencyKey?: string;
     createdAt: string;
   }>;
 }
@@ -56,6 +57,50 @@ function client() {
   return google.calendar({ version: "v3", auth });
 }
 
+function eventLink(id: string) {
+  return `fake-calendar://${id}`;
+}
+
+export async function findEventByIdempotencyKey(calendarId: string, idempotencyKey: string): Promise<string | undefined> {
+  if (useFakeCalendar()) {
+    const state = readFakeState();
+    const existing = state.events.find((event) => event.calendarId === calendarId && event.idempotencyKey === idempotencyKey);
+    return existing ? eventLink(existing.id) : undefined;
+  }
+
+  const cal = client();
+  const res = await cal.events.list({
+    calendarId,
+    privateExtendedProperty: [`idempotencyKey=${idempotencyKey}`],
+    maxResults: 1,
+    singleEvents: true,
+  });
+  const existing = res.data.items?.[0];
+  return existing ? existing.htmlLink || existing.id || undefined : undefined;
+}
+
+export async function findMatchingEvent(calendarId: string, ev: Pick<CalendarEventInput, "summary" | "startISO" | "endISO">): Promise<string | undefined> {
+  if (useFakeCalendar()) {
+    const state = readFakeState();
+    const existing = state.events.find(
+      (stored) => stored.calendarId === calendarId && stored.summary === ev.summary && stored.start === ev.startISO && stored.end === ev.endISO,
+    );
+    return existing ? eventLink(existing.id) : undefined;
+  }
+
+  const cal = client();
+  const res = await cal.events.list({
+    calendarId,
+    timeMin: ev.startISO,
+    timeMax: ev.endISO,
+    q: ev.summary,
+    maxResults: 10,
+    singleEvents: true,
+  });
+  const existing = res.data.items?.find((item) => item.summary === ev.summary);
+  return existing ? existing.htmlLink || existing.id || undefined : undefined;
+}
+
 export async function getBusy(calendarId: string, fromISO: string, toISO: string): Promise<Busy[]> {
   if (useFakeCalendar()) {
     const state = readFakeState();
@@ -72,12 +117,23 @@ export async function getBusy(calendarId: string, fromISO: string, toISO: string
   return busy.map((b) => ({ start: b.start!, end: b.end! }));
 }
 
-export async function createEvent(
-  calendarId: string,
-  ev: { summary: string; description?: string; startISO: string; endISO: string; tz: string },
-): Promise<string> {
+export interface CalendarEventInput {
+  summary: string;
+  description?: string;
+  startISO: string;
+  endISO: string;
+  tz: string;
+  idempotencyKey?: string;
+}
+
+export async function createEvent(calendarId: string, ev: CalendarEventInput): Promise<string> {
   if (useFakeCalendar()) {
     const state = readFakeState();
+    if (ev.idempotencyKey) {
+      const existing = state.events.find((stored) => stored.calendarId === calendarId && stored.idempotencyKey === ev.idempotencyKey);
+      if (existing) return `fake-calendar://${existing.id}`;
+    }
+
     const id = `fake_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     state.events.push({
       id,
@@ -87,6 +143,7 @@ export async function createEvent(
       start: ev.startISO,
       end: ev.endISO,
       tz: ev.tz,
+      idempotencyKey: ev.idempotencyKey,
       createdAt: new Date().toISOString(),
     });
     writeFakeState(state);
@@ -101,6 +158,7 @@ export async function createEvent(
       description: ev.description,
       start: { dateTime: ev.startISO, timeZone: ev.tz },
       end: { dateTime: ev.endISO, timeZone: ev.tz },
+      extendedProperties: ev.idempotencyKey ? { private: { idempotencyKey: ev.idempotencyKey } } : undefined,
     },
   });
   return res.data.htmlLink || res.data.id || "ok";

@@ -1,9 +1,9 @@
 import { DateTime, Interval } from "luxon";
 import type { Client } from "./config.js";
 import { findService } from "./config.js";
-import { getBusy, createEvent } from "./calendar.js";
+import { createEvent, findEventByIdempotencyKey, findMatchingEvent, getBusy } from "./calendar.js";
 import { computeFreeSlots } from "./slots.js";
-import { addLead, type LeadChannel } from "./store.js";
+import { addLead, bookedLead, leadByIdempotencyKey, withBookingLock, type LeadChannel } from "./store.js";
 import { sendWhatsapp } from "./whatsapp.js";
 
 // Tool definitions in OpenAI format (compatible with OpenRouter).
@@ -83,6 +83,14 @@ export function estimateServiceValueCents(price?: string): number | undefined {
   return Math.round(Number(match[1]) * 100);
 }
 
+function safeKeyPart(value: string) {
+  return value.trim().toLowerCase().replace(/[^a-z0-9:+@._-]+/g, "_").slice(0, 120);
+}
+
+function bookingIdempotencyKey(phone: string, service: string, startISO: string) {
+  return ["booking", safeKeyPart(phone), safeKeyPart(service), safeKeyPart(DateTime.fromISO(startISO).toUTC().toISO() ?? startISO)].join(":");
+}
+
 export function makeHandlers(cfg: Client, phone: string): Record<string, Handler> {
   const tz = cfg.timezone;
 
@@ -121,53 +129,93 @@ export function makeHandlers(cfg: Client, phone: string): Record<string, Handler
 
     async book_appointment({ name, service, start, channel }) {
       const svc = findService(cfg, service);
+      const serviceName = svc?.name ?? service;
       const durationMin = svc?.durationMin ?? 60;
       const sourceChannel = normalizedChannel(channel, phone.startsWith("whatsapp:") ? "whatsapp" : "server_tool");
       const startDt = DateTime.fromISO(start, { zone: tz });
       if (!startDt.isValid) return { error: "Invalid date" };
       if (startDt <= DateTime.now().setZone(tz)) return { error: "Cannot book a past time" };
       const end = startDt.plus({ minutes: durationMin });
+      const idempotencyKey = bookingIdempotencyKey(phone, serviceName, startDt.toISO()!);
+      const lockKey = `calendar:${cfg.calendarId}:${startDt.toUTC().toISO()}:${end.toUTC().toISO()}`;
 
-      // Re-check the exact requested interval immediately before creating the event.
-      const busy = await getBusy(cfg.calendarId, startDt.toUTC().toISO()!, end.toUTC().toISO()!);
-      if (overlapsBusy(busy, startDt, end, tz)) {
+      return withBookingLock(lockKey, async () => {
+        const existing = leadByIdempotencyKey(idempotencyKey) ?? bookedLead(phone, serviceName, startDt.toISO()!);
+        if (existing) {
+          return {
+            ok: true,
+            when: startDt.toFormat("cccc d.LL. HH:mm"),
+            link: "idempotent-replay",
+            channel: existing.channel ?? sourceChannel,
+            estimatedValueCents: existing.estimatedValueCents,
+            idempotencyKey,
+            idempotentReplay: true,
+          };
+        }
+
+        const summary = `${serviceName} - ${name}`;
+        const existingCalendarLink =
+          (await findEventByIdempotencyKey(cfg.calendarId, idempotencyKey)) ??
+          (await findMatchingEvent(cfg.calendarId, { summary, startISO: startDt.toISO()!, endISO: end.toISO()! }));
+        if (existingCalendarLink) {
+          return {
+            ok: true,
+            when: startDt.toFormat("cccc d.LL. HH:mm"),
+            link: existingCalendarLink,
+            channel: sourceChannel,
+            estimatedValueCents: estimateServiceValueCents(svc?.price),
+            idempotencyKey,
+            idempotentReplay: true,
+          };
+        }
+
+        // Re-check the exact requested interval inside the lock immediately before creating the event.
+        const busy = await getBusy(cfg.calendarId, startDt.toUTC().toISO()!, end.toUTC().toISO()!);
+        if (overlapsBusy(busy, startDt, end, tz)) {
+          return {
+            error: "Slot is no longer available",
+            message: "That time was just taken. Please call check_availability again and offer fresh times.",
+          };
+        }
+
+        const link = await createEvent(cfg.calendarId, {
+          summary,
+          description: `Booked via ${sourceChannel} (${phone}). Idempotency-Key: ${idempotencyKey}`,
+          startISO: startDt.toISO()!,
+          endISO: end.toISO()!,
+          tz,
+          idempotencyKey,
+        });
+
+        const stored = addLead({
+          phone,
+          name,
+          service: serviceName,
+          status: "booked",
+          channel: sourceChannel,
+          startISO: startDt.toISO()!,
+          estimatedValueCents: estimateServiceValueCents(svc?.price),
+          idempotencyKey,
+          createdAt: DateTime.now().toISO()!,
+        });
+
+        if (stored.inserted) {
+          await alertOwner(
+            cfg,
+            `New booking: ${name} - ${serviceName} on ${startDt.toFormat("cccc d.LL. HH:mm")}. Customer: ${phone}`,
+          );
+        }
+
         return {
-          error: "Slot is no longer available",
-          message: "That time was just taken. Please call check_availability again and offer fresh times.",
+          ok: true,
+          when: startDt.toFormat("cccc d.LL. HH:mm"),
+          link,
+          channel: sourceChannel,
+          estimatedValueCents: estimateServiceValueCents(svc?.price),
+          idempotencyKey,
+          idempotentReplay: !stored.inserted,
         };
-      }
-
-      const link = await createEvent(cfg.calendarId, {
-        summary: `${svc?.name ?? service} - ${name}`,
-        description: `Booked via WhatsApp (${phone}).`,
-        startISO: startDt.toISO()!,
-        endISO: end.toISO()!,
-        tz,
       });
-
-      addLead({
-        phone,
-        name,
-        service: svc?.name ?? service,
-        status: "booked",
-        channel: sourceChannel,
-        startISO: startDt.toISO()!,
-        estimatedValueCents: estimateServiceValueCents(svc?.price),
-        createdAt: DateTime.now().toISO()!,
-      });
-
-      await alertOwner(
-        cfg,
-        `New booking: ${name} - ${svc?.name ?? service} on ${startDt.toFormat("cccc d.LL. HH:mm")}. Customer: ${phone}`,
-      );
-
-      return {
-        ok: true,
-        when: startDt.toFormat("cccc d.LL. HH:mm"),
-        link,
-        channel: sourceChannel,
-        estimatedValueCents: estimateServiceValueCents(svc?.price),
-      };
     },
 
     async register_lead({ name, service, notes, channel }) {

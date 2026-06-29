@@ -93,11 +93,12 @@ clients/salon-demo.yaml  ← one business = one file. Adapt = copy and edit.
   Set `SERVER_TOOL_TOKEN` to require an `Authorization` bearer header.
 - `POST /webhook/voice/post-call` stores phone call outcomes and sends owner follow-up alerts
   for missed/voicemail/failed/needs-follow-up calls. See `docs/voice-phone-readiness.md`.
-- `book_appointment` re-checks the requested interval before creating the event, reducing
-  double-booking risk.
+- `book_appointment` re-checks the requested interval inside an in-process booking lock before
+  creating the event. Same customer/service/start retries are idempotent; different customers are
+  still rejected by the double-booking guard.
 - `ownerWhatsapp` empty → owner alerts print to the console (DRYRUN).
 - Data in `data/state.json` by default, written atomically. For production volume or multiple
-  server instances, swap to SQLite/Postgres.
+  server instances, swap to Postgres before paid pilot; see `docs/production-data-readiness.md`.
 - For production with clinics (health data) → swap Twilio for **360dialog** (German BSP,
   DPA/GDPR) by touching only `whatsapp.ts`.
 - Strategy, scoping and all product decisions live in `PROJECT.md`.

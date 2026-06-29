@@ -22,7 +22,14 @@ export interface Lead {
   notes?: string;
   startISO?: string;
   estimatedValueCents?: number;
+  /** Stable key used to make provider retries safe. */
+  idempotencyKey?: string;
   createdAt: string; // ISO
+}
+
+export interface AddLeadResult {
+  lead: Lead;
+  inserted: boolean;
 }
 
 export interface CallOutcome {
@@ -94,9 +101,28 @@ export function addMessage(phone: string, role: Msg["role"], content: string) {
   persist();
 }
 
-export function addLead(lead: Lead) {
-  state.leads.push({ ...lead, channel: lead.channel ?? "unknown" });
+export function addLead(lead: Lead): AddLeadResult {
+  const normalized = { ...lead, channel: lead.channel ?? "unknown" };
+  if (normalized.idempotencyKey) {
+    const existing = state.leads.find((stored) => stored.idempotencyKey === normalized.idempotencyKey);
+    if (existing) return { lead: existing, inserted: false };
+  }
+
+  state.leads.push(normalized);
   persist();
+  return { lead: normalized, inserted: true };
+}
+
+export function leadByIdempotencyKey(idempotencyKey: string): Lead | undefined {
+  return state.leads.find((lead) => lead.idempotencyKey === idempotencyKey);
+}
+
+export function bookedLead(phone: string, service: string, startISO: string): Lead | undefined {
+  const startMs = DateTime.fromISO(startISO).toMillis();
+  return state.leads.find((lead) => {
+    if (lead.status !== "booked" || lead.phone !== phone || lead.service !== service || !lead.startISO) return false;
+    return lead.startISO === startISO || DateTime.fromISO(lead.startISO).toMillis() === startMs;
+  });
 }
 
 export function leadsOn(dateISO: string, tz: string): Lead[] {
@@ -140,6 +166,30 @@ export function exportSubjectData(phone: string): SubjectDataExport {
     leads: state.leads.filter((lead) => lead.phone === phone),
     callOutcomes: state.callOutcomes.filter((call) => call.phone === phone),
   };
+}
+
+const inProcessLocks = new Map<string, Promise<unknown>>();
+
+/**
+ * Serializes critical sections inside this Node process. Postgres deployments should
+ * back this seam with advisory locks / SELECT FOR UPDATE so multiple workers share it.
+ */
+export async function withBookingLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
+  const prior = inProcessLocks.get(key) ?? Promise.resolve();
+  let release!: () => void;
+  const current = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const chained = prior.then(() => current);
+  inProcessLocks.set(key, chained);
+
+  try {
+    await prior;
+    return await fn();
+  } finally {
+    release();
+    if (inProcessLocks.get(key) === chained) inProcessLocks.delete(key);
+  }
 }
 
 export function deleteSubjectData(phone: string): SubjectDataDeletion {

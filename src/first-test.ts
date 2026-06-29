@@ -62,7 +62,15 @@ async function main() {
   });
   console.log("booking=", JSON.stringify(booking));
 
-  const doubleBooking = await runTool(cfg, phone, "book_appointment", {
+  const idempotentReplay = await runTool(cfg, phone, "book_appointment", {
+    name: "Test Kundin",
+    service: service.name,
+    start: start.toISO(),
+    channel: "phone",
+  });
+  console.log("idempotent_replay=", JSON.stringify(idempotentReplay));
+
+  const doubleBooking = await runTool(cfg, "whatsapp:+491****3333", "book_appointment", {
     name: "Double Booking Test",
     service: service.name,
     start: start.toISO(),
@@ -116,6 +124,9 @@ async function main() {
   console.log("privacy_delete=", JSON.stringify(deleted));
 
   if (!(booking as any).ok) throw new Error("Expected booking to succeed");
+  if (!(idempotentReplay as any).ok || !(idempotentReplay as any).idempotentReplay) {
+    throw new Error("Expected same booking retry to return an idempotent replay");
+  }
   if (!(doubleBooking as any).error) throw new Error("Expected double-booking guard to reject the second booking");
   if (!(lead as any).ok) throw new Error("Expected lead registration to succeed");
   if (metrics.booked !== 1 || metrics.followups !== 1) throw new Error("Expected metrics to count one booking and one follow-up");
