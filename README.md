@@ -88,6 +88,9 @@ clients/salon-demo.yaml  ← one business = one file. Adapt = copy and edit.
   `SERVER_TOOL_TOKEN` in any non-local deployment.
 - `POST /privacy/retention/purge` supports operator-triggered retention cleanup. It defaults to
   `dryRun: true`; set `dryRun: false` deliberately after checking counts.
+- `GET /readiness/live-pilot` is a bearer-protected gate report for live-pilot blockers
+  (credentials, signature validation, fake calendar, retention policy) and JSON-store warnings.
+  Set `REQUIRE_LIVE_PILOT_READINESS=true` only when startup should fail on unresolved blockers.
 - Twilio webhook requests are signature-validated by default. Set `TWILIO_WEBHOOK_BASE_URL`
   to the public tunnel/domain if auto-detection does not match Twilio's URL. Use
   `SKIP_TWILIO_SIGNATURE_VALIDATION=true` only for local manual tests.

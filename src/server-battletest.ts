@@ -88,6 +88,17 @@ async function main() {
     let out = await json("/metrics/today");
     assert(out.res.status === 401, `metrics without bearer should be 401, got ${out.res.status}`);
 
+    out = await json("/readiness/live-pilot");
+    assert(out.res.status === 401, `readiness without bearer should be 401, got ${out.res.status}`);
+
+    out = await json("/readiness/live-pilot", { headers: { authorization: `Bearer ${TOKEN}` } });
+    assert(out.res.status === 409, `fake/missing-credential readiness should be 409, got ${out.res.status} ${JSON.stringify(out.body)}`);
+    assert(out.body?.ok === false, `readiness body should be not ok: ${JSON.stringify(out.body)}`);
+    assert(
+      Array.isArray(out.body?.gates) && out.body.gates.some((gate: any) => gate.name === "calendar provider" && gate.ok === false),
+      `readiness should flag calendar provider: ${JSON.stringify(out.body)}`,
+    );
+
     out = await json("/metrics/today", { headers: { authorization: `Bearer ${TOKEN}` } });
     assert(out.res.ok, `authorized metrics failed: ${out.res.status}`);
     assert(out.body?.booked === 0, "fresh battletest state should start with 0 bookings");

@@ -63,3 +63,5 @@ create table call_outcomes (
 Do not run multiple bot workers against the JSON store. JSON is acceptable for single-process demos only. For a paid pilot, use Postgres or force one process/one worker and accept the operational risk explicitly.
 
 Before live customer traffic, set a retention policy (`DATA_RETENTION_DAYS`, e.g. 90) and run the protected retention endpoint first with `dryRun: true`, then with `dryRun: false` only after the deletion counts are expected. Legacy JSON messages without timestamps are retained until subject delete or migration because the app cannot prove their age.
+
+Use `GET /readiness/live-pilot` as the operator preflight before connecting real customers. It intentionally returns `409` while blocker gates are unresolved and includes a JSON-store warning until `STORE_BACKEND` is moved away from `json` or a one-worker risk exception is explicitly accepted. For stricter environments, set `REQUIRE_LIVE_PILOT_READINESS=true` so the server refuses to start while blockers remain.
