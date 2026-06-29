@@ -18,6 +18,7 @@ CHECK_FILES = [
     "docs/demo-script-hair-salon.md",
     "docs/dev-google-calendar-setup.md",
     "docs/elevenlabs-voice-agent-setup.md",
+    "docs/supabase-postgres-setup.md",
     "docs/tilda-identity.md",
     "docs/tilda-priority-plan.md",
     "docs/tilda-voice-style.md",

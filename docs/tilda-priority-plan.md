@@ -149,7 +149,7 @@ Tasks:
 - Create a test Supabase project or database.
 - Use a throwaway test database or schema.
 - Run `npm run postgres:smoke` with TLS if required.
-- Document Supabase connection settings and pitfalls.
+- Document Supabase connection settings and pitfalls. Current doc: `docs/supabase-postgres-setup.md`.
 - Keep credentials out of git.
 
 Blocked on:
