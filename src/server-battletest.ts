@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { existsSync, rmSync } from "node:fs";
 import { setTimeout as sleep } from "node:timers/promises";
 
@@ -40,13 +40,23 @@ function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
 }
 
+function assertUnsupportedStoreBackendFails() {
+  const result = spawnSync(process.execPath, ["./node_modules/.bin/tsx", "-e", "import('./src/store.ts')"], {
+    env: { ...process.env, STORE_BACKEND: "postgres", STATE_FILE: "data/unsupported-store-test.json" },
+    encoding: "utf8",
+  });
+  const combined = `${result.stdout ?? ""}${result.stderr ?? ""}`;
+  assert(result.status !== 0, "unsupported STORE_BACKEND should fail fast instead of silently using JSON");
+  assert(combined.includes("STORE_BACKEND=postgres is not implemented"), `unexpected unsupported backend error: ${combined}`);
+}
+
 async function waitForHealth() {
   const deadline = Date.now() + 15_000;
   let lastError = "not attempted";
   while (Date.now() < deadline) {
     try {
       const { res, body } = await json("/health");
-      if (res.ok && body?.ok) return;
+      if (res.ok && body?.ok && body?.storeBackend === "json") return;
       lastError = `${res.status} ${JSON.stringify(body)}`;
     } catch (e: any) {
       lastError = String(e?.message ?? e);
@@ -59,6 +69,7 @@ async function waitForHealth() {
 async function main() {
   removeIfExists(STATE_FILE);
   removeIfExists(CALENDAR_FILE);
+  assertUnsupportedStoreBackendFails();
 
   const child = spawn(process.execPath, ["./node_modules/.bin/tsx", "src/server.ts"], {
     env: {

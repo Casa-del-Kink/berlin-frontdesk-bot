@@ -9,10 +9,11 @@ This repo still defaults to the credential-free JSON store because it is useful 
 - Calendar events store the idempotency key in `extendedProperties.private.idempotencyKey` for Google Calendar and in the fake calendar fixture for tests.
 - `withBookingLock()` serializes booking critical sections in the current Node process.
 - The fake/Google calendar boundary now uses a formal `CalendarProvider` seam (`findEventByIdempotencyKey`, `findMatchingEvent`, `getBusy`, `createEvent`) instead of embedding provider details in tools.
+- Persistence now uses a formal `StoreBackend` seam with a JSON implementation and a fail-fast guard for unsupported `STORE_BACKEND` values, so setting `STORE_BACKEND=postgres` cannot silently keep using JSON.
 
 ## Postgres migration contract
 
-For a multi-worker paid pilot, replace the current JSON persistence internals with a Postgres-backed implementation that preserves the exported store API:
+For a multi-worker paid pilot, add a Postgres-backed `StoreBackend` implementation that preserves the exported store API:
 
 - `addMessage(phone, role, content)` with capped per-phone history and `created_at` timestamps for retention.
 - `addLead(lead)` with a unique constraint on `idempotency_key` when present. Use it for both confirmed bookings and follow-up leads so server-tool/provider retries do not duplicate operator work.
