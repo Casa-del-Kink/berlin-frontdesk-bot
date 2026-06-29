@@ -53,6 +53,7 @@ export const toolDefs = [
           service: { type: "string" },
           notes: { type: "string", description: "Short summary of what the customer wants" },
           channel: { type: "string", enum: ["whatsapp", "phone", "server_tool", "unknown"], description: "Where the inquiry came from" },
+          idempotencyKey: { type: "string", description: "Optional stable provider/request key. Reusing it makes lead registration safe to retry." },
         },
         required: ["notes"],
       },
@@ -89,6 +90,11 @@ function safeKeyPart(value: string) {
 
 function bookingIdempotencyKey(phone: string, service: string, startISO: string) {
   return ["booking", safeKeyPart(phone), safeKeyPart(service), safeKeyPart(DateTime.fromISO(startISO).toUTC().toISO() ?? startISO)].join(":");
+}
+
+function leadIdempotencyKey(phone: string, service: string | undefined, notes: string, explicit?: string) {
+  if (explicit?.trim()) return `lead:${safeKeyPart(explicit)}`;
+  return ["lead", safeKeyPart(phone), safeKeyPart(service ?? "unknown"), safeKeyPart(notes)].join(":");
 }
 
 export function makeHandlers(cfg: Client, phone: string): Record<string, Handler> {
@@ -218,21 +224,32 @@ export function makeHandlers(cfg: Client, phone: string): Record<string, Handler
       });
     },
 
-    async register_lead({ name, service, notes, channel }) {
+    async register_lead({ name, service, notes, channel, idempotencyKey }) {
       const svc = findService(cfg, service);
       const sourceChannel = normalizedChannel(channel, phone.startsWith("whatsapp:") ? "whatsapp" : "server_tool");
-      addLead({
+      const serviceName = svc?.name ?? service;
+      const stableKey = leadIdempotencyKey(phone, serviceName, notes, idempotencyKey);
+      const stored = addLead({
         phone,
         name,
-        service: svc?.name ?? service,
+        service: serviceName,
         status: "needs_followup",
         channel: sourceChannel,
         notes,
         estimatedValueCents: estimateServiceValueCents(svc?.price),
+        idempotencyKey: stableKey,
         createdAt: DateTime.now().toISO()!,
       });
-      await alertOwner(cfg, `Follow-up needed: ${name ?? "Unknown"} (${phone}) · ${svc?.name ?? service ?? "unknown service"} · ${notes}`);
-      return { ok: true, channel: sourceChannel, estimatedValueCents: estimateServiceValueCents(svc?.price) };
+      if (stored.inserted) {
+        await alertOwner(cfg, `Follow-up needed: ${name ?? "Unknown"} (${phone}) · ${serviceName ?? "unknown service"} · ${notes}`);
+      }
+      return {
+        ok: true,
+        channel: stored.lead.channel ?? sourceChannel,
+        estimatedValueCents: stored.lead.estimatedValueCents,
+        idempotencyKey: stableKey,
+        idempotentReplay: !stored.inserted,
+      };
     },
   };
 }

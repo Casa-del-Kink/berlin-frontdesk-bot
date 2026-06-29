@@ -163,6 +163,42 @@ async function main() {
     assert(out.res.ok, `retention purge dry run failed: ${out.res.status} ${JSON.stringify(out.body)}`);
     assert(out.body?.dryRun === true, `retention purge should default to dryRun: ${JSON.stringify(out.body)}`);
 
+    const leadPhone = "whatsapp:+491****0005";
+    out = await json(
+      "/tools/register_lead",
+      authJson({
+        phone: leadPhone,
+        args: {
+          name: "Lead Retry Test",
+          service: "Damenhaarschnitt",
+          notes: "Provider retried lead registration",
+          channel: "server_tool",
+          idempotencyKey: "battle-lead-1",
+        },
+      }),
+    );
+    assert(out.res.ok && out.body?.ok === true && out.body?.idempotentReplay === false, `lead registration failed: ${out.res.status} ${JSON.stringify(out.body)}`);
+
+    out = await json(
+      "/tools/register_lead",
+      authJson({
+        phone: leadPhone,
+        args: {
+          name: "Lead Retry Test",
+          service: "Damenhaarschnitt",
+          notes: "Provider retried lead registration",
+          channel: "server_tool",
+          idempotencyKey: "battle-lead-1",
+        },
+      }),
+    );
+    assert(out.res.ok && out.body?.idempotentReplay === true, `lead retry should be idempotent: ${out.res.status} ${JSON.stringify(out.body)}`);
+
+    out = await json("/privacy/export", authJson({ phone: leadPhone }));
+    assert(out.res.ok && out.body?.leads?.length === 1, `duplicate lead retry should only store once: ${out.res.status} ${JSON.stringify(out.body)}`);
+    out = await json("/privacy/delete", authJson({ phone: leadPhone }));
+    assert(out.res.ok && out.body?.leadsDeleted === 1, `lead retry fixture cleanup failed: ${out.res.status} ${JSON.stringify(out.body)}`);
+
     const form = new URLSearchParams();
     form.set("From", "whatsapp:+491****0004");
     form.set("Body", "Hi");

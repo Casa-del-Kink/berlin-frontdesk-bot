@@ -95,7 +95,8 @@ clients/salon-demo.yaml  ← one business = one file. Adapt = copy and edit.
   to the public tunnel/domain if auto-detection does not match Twilio's URL. Use
   `SKIP_TWILIO_SIGNATURE_VALIDATION=true` only for local manual tests.
 - `POST /tools/:name` exposes the shared "one brain" tools for ElevenLabs/server-tool use.
-  Set `SERVER_TOOL_TOKEN` to require an `Authorization` bearer header.
+  Set `SERVER_TOOL_TOKEN` to require an `Authorization` bearer header. `register_lead` accepts an
+  optional `idempotencyKey` so provider retries do not duplicate follow-up leads or owner alerts.
 - `POST /webhook/voice/post-call` stores phone call outcomes and sends owner follow-up alerts
   for missed/voicemail/failed/needs-follow-up calls. Provider retries with the same `callId` are
   idempotent and do not duplicate stored outcomes or alerts. See `docs/voice-phone-readiness.md`.

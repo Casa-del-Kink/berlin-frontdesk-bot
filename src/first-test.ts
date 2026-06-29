@@ -83,8 +83,18 @@ async function main() {
     service: service.name,
     notes: "Customer wants a callback about pricing.",
     channel: "whatsapp",
+    idempotencyKey: "first-test-followup-1",
   });
   console.log("lead=", JSON.stringify(lead));
+
+  const leadReplay = await runTool(cfg, phone, "register_lead", {
+    name: "Follow Up Test",
+    service: service.name,
+    notes: "Customer wants a callback about pricing.",
+    channel: "whatsapp",
+    idempotencyKey: "first-test-followup-1",
+  });
+  console.log("lead_replay=", JSON.stringify(leadReplay));
 
   const availabilityAfter = await runTool(cfg, phone, "check_availability", {
     service: service.name,
@@ -153,6 +163,9 @@ async function main() {
   }
   if (!(doubleBooking as any).error) throw new Error("Expected double-booking guard to reject the second booking");
   if (!(lead as any).ok) throw new Error("Expected lead registration to succeed");
+  if (!(leadReplay as any).ok || !(leadReplay as any).idempotentReplay) {
+    throw new Error("Expected same lead retry to return an idempotent replay");
+  }
   if (metrics.booked !== 1 || metrics.followups !== 1) throw new Error("Expected metrics to count one booking and one follow-up");
   if (metrics.estimatedBookedRevenueCents <= 0) throw new Error("Expected booked revenue estimate to be present");
   if (metrics.byChannel.phone !== 1 || metrics.byChannel.whatsapp !== 1) throw new Error("Expected channel metrics for phone and WhatsApp");

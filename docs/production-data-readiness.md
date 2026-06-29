@@ -15,7 +15,7 @@ This repo still defaults to the credential-free JSON store because it is useful 
 For a multi-worker paid pilot, replace the current JSON persistence internals with a Postgres-backed implementation that preserves the exported store API:
 
 - `addMessage(phone, role, content)` with capped per-phone history and `created_at` timestamps for retention.
-- `addLead(lead)` with a unique constraint on `idempotency_key` when present.
+- `addLead(lead)` with a unique constraint on `idempotency_key` when present. Use it for both confirmed bookings and follow-up leads so server-tool/provider retries do not duplicate operator work.
 - `leadByIdempotencyKey(idempotencyKey)` and `bookedLead(phone, service, startISO)` for safe retries.
 - `addCallOutcome(outcome)` with a unique `call_id` when provider IDs are available, returning an idempotent replay on duplicate provider retries.
 - `metricsOn(dateISO, tz)`, `exportSubjectData(phone)`, `deleteSubjectData(phone)`, and `purgeOldData(maxAgeDays, dryRun)`.
