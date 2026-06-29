@@ -1,5 +1,6 @@
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync, rmSync } from "node:fs";
+import { createRequire } from "node:module";
 import { setTimeout as sleep } from "node:timers/promises";
 
 const PORT = Number(process.env.BATTLETEST_PORT || 4321);
@@ -7,6 +8,8 @@ const BASE = `http://127.0.0.1:${PORT}`;
 const TOKEN = "server-battletest-token";
 const STATE_FILE = "data/server-battletest-state.json";
 const CALENDAR_FILE = "data/server-battletest-calendar.json";
+const require = createRequire(import.meta.url);
+const TSX_CLI = require.resolve("tsx/cli");
 
 function removeIfExists(path: string) {
   if (existsSync(path)) rmSync(path);
@@ -41,13 +44,35 @@ function assert(condition: unknown, message: string): asserts condition {
 }
 
 function assertPostgresBackendRequiresDatabaseUrl() {
-  const result = spawnSync(process.execPath, ["./node_modules/.bin/tsx", "-e", "import('./src/store.ts')"], {
+  const result = spawnSync(process.execPath, [TSX_CLI, "-e", "import('./src/store.ts')"], {
     env: { ...process.env, STORE_BACKEND: "postgres", DATABASE_URL: "", POSTGRES_URL: "", STATE_FILE: "data/postgres-missing-url-test.json" },
     encoding: "utf8",
   });
   const combined = `${result.stdout ?? ""}${result.stderr ?? ""}`;
   assert(result.status !== 0, "STORE_BACKEND=postgres should fail fast when DATABASE_URL is missing");
   assert(combined.includes("STORE_BACKEND=postgres requires DATABASE_URL"), `unexpected missing database URL error: ${combined}`);
+}
+
+function assertStrictStartupRequiresDeploymentReadiness() {
+  const result = spawnSync(process.execPath, [TSX_CLI, "src/server.ts"], {
+    env: {
+      ...process.env,
+      PORT: String(PORT + 1),
+      USE_FAKE_CALENDAR: "true",
+      FAKE_CALENDAR_FILE: CALENDAR_FILE,
+      STATE_FILE,
+      SERVER_TOOL_TOKEN: TOKEN,
+      SKIP_TWILIO_SIGNATURE_VALIDATION: "false",
+      REQUIRE_LIVE_PILOT_READINESS: "true",
+    },
+    encoding: "utf8",
+    timeout: 10_000,
+  });
+  const combined = `${result.stdout ?? ""}${result.stderr ?? ""}`;
+  assert(result.status !== 0, "REQUIRE_LIVE_PILOT_READINESS=true should refuse startup while blockers remain");
+  assert(combined.includes("Deployment readiness blockers"), `strict startup should print deployment blockers: ${combined}`);
+  assert(combined.includes("fake calendar disabled"), `strict startup should include fake-calendar blocker: ${combined}`);
+  assert(combined.includes("store backend postgres"), `strict startup should include Postgres blocker: ${combined}`);
 }
 
 async function waitForHealth() {
@@ -70,8 +95,9 @@ async function main() {
   removeIfExists(STATE_FILE);
   removeIfExists(CALENDAR_FILE);
   assertPostgresBackendRequiresDatabaseUrl();
+  assertStrictStartupRequiresDeploymentReadiness();
 
-  const child = spawn(process.execPath, ["./node_modules/.bin/tsx", "src/server.ts"], {
+  const child = spawn(process.execPath, [TSX_CLI, "src/server.ts"], {
     env: {
       ...process.env,
       PORT: String(PORT),
@@ -105,9 +131,14 @@ async function main() {
     out = await json("/readiness/live-pilot", { headers: { authorization: `Bearer ${TOKEN}` } });
     assert(out.res.status === 409, `fake/missing-credential readiness should be 409, got ${out.res.status} ${JSON.stringify(out.body)}`);
     assert(out.body?.ok === false, `readiness body should be not ok: ${JSON.stringify(out.body)}`);
+    assert(Array.isArray(out.body?.blockers) && out.body.blockers.length > 0, `readiness should list blockers: ${JSON.stringify(out.body)}`);
     assert(
-      Array.isArray(out.body?.gates) && out.body.gates.some((gate: any) => gate.name === "calendar provider" && gate.ok === false),
+      Array.isArray(out.body?.checks) && out.body.checks.some((check: any) => check.name === "calendar provider" && check.ok === false),
       `readiness should flag calendar provider: ${JSON.stringify(out.body)}`,
+    );
+    assert(
+      out.body.checks.some((check: any) => check.name === "fake calendar disabled" && check.ok === false),
+      `readiness should flag fake calendar deployment blocker: ${JSON.stringify(out.body)}`,
     );
 
     out = await json("/metrics/today", { headers: { authorization: `Bearer ${TOKEN}` } });

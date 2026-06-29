@@ -65,13 +65,29 @@ create unique index leads_idempotency_key_uidx on leads (idempotency_key) where 
 
 ## Smoke test
 
-Run against a throwaway database before enabling Postgres for a pilot:
+Run against a throwaway database before enabling Postgres for a pilot. Supabase is the primary hosted Postgres target for Tilda. Neon is the second option.
+
+Supabase direct connection example:
+
+```bash
+PGSSL=true DATABASE_URL='postgresql://postgres:***@[host]:5432/postgres' npm run postgres:smoke
+```
+
+Supabase pooler example:
+
+```bash
+PGSSL=true DATABASE_URL='postgresql://postgres.[project-ref]:***@[region].pooler.supabase.com:6543/postgres' npm run postgres:smoke
+```
+
+Generic local Postgres example:
 
 ```bash
 DATABASE_URL=postgres://user:***@localhost:5432/berlin_frontdesk_test npm run postgres:smoke
 ```
 
 Expected result: `POSTGRES_STORE_SMOKE_OK`. The smoke covers schema creation, capped conversation history, lead idempotency, booked-lead lookup, call-outcome idempotency, advisory-lock execution, metrics, export/delete, and retention purge.
+
+See `docs/supabase-postgres-setup.md` for the Supabase-specific setup checklist.
 
 ## Pilot gate
 

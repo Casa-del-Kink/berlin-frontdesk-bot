@@ -333,8 +333,8 @@ class PostgresStoreBackend implements StoreBackend {
     const normalized = { ...lead, channel: lead.channel ?? "unknown" };
     if (normalized.idempotencyKey) {
       const inserted = await this.pool.query<DbLeadRow>(
-        `insert into leads (phone, name, service, status, channel, notes, start_iso, estimated_value_cents, idempotency_key, created_at)
-         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::timestamptz)
+        `insert into leads (phone, name, service, status, channel, notes, start_iso, start_utc, estimated_value_cents, idempotency_key, created_at)
+         values ($1,$2,$3,$4,$5,$6,$7,$8::timestamptz,$9,$10,$11::timestamptz)
          on conflict (idempotency_key) where idempotency_key is not null do nothing
          returning phone, name, service, status, channel, notes, start_iso, estimated_value_cents, idempotency_key, created_at`,
         leadValues(normalized),
@@ -345,8 +345,8 @@ class PostgresStoreBackend implements StoreBackend {
     }
 
     const inserted = await this.pool.query<DbLeadRow>(
-      `insert into leads (phone, name, service, status, channel, notes, start_iso, estimated_value_cents, idempotency_key, created_at)
-       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::timestamptz)
+      `insert into leads (phone, name, service, status, channel, notes, start_iso, start_utc, estimated_value_cents, idempotency_key, created_at)
+       values ($1,$2,$3,$4,$5,$6,$7,$8::timestamptz,$9,$10,$11::timestamptz)
        returning phone, name, service, status, channel, notes, start_iso, estimated_value_cents, idempotency_key, created_at`,
       leadValues(normalized),
     );
@@ -525,9 +525,7 @@ class PostgresStoreBackend implements StoreBackend {
         channel text not null default 'unknown' check (channel in ('whatsapp', 'phone', 'server_tool', 'unknown')),
         notes text,
         start_iso text,
-        start_utc timestamptz generated always as (
-          case when start_iso is null then null else start_iso::timestamptz end
-        ) stored,
+        start_utc timestamptz,
         estimated_value_cents integer,
         idempotency_key text,
         created_at timestamptz not null default now()
@@ -565,6 +563,7 @@ function leadValues(lead: Lead) {
     lead.channel ?? "unknown",
     lead.notes ?? null,
     lead.startISO ?? null,
+    lead.startISO ? DateTime.fromISO(lead.startISO).toUTC().toISO() : null,
     lead.estimatedValueCents ?? null,
     lead.idempotencyKey ?? null,
     lead.createdAt,

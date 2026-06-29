@@ -6,7 +6,7 @@ timezone: "Europe/Berlin"
 language: "de"
 
 # Google Calendar ID to use (create a test calendar and share it with the Service Account).
-calendarId: "PUT_YOUR_CALENDAR_ID_HERE@group.calendar.google.com"
+calendarId: "ec639255e6fd2473e4ea2e1af60b996dab2f5df5fa5422047fff337ccc523938@group.calendar.google.com"
 
 # Owner's WhatsApp for alerts and the daily summary. Empty = no send (log only).
 # On the Twilio sandbox the owner must have joined the sandbox first.
@@ -16,8 +16,8 @@ ownerWhatsapp: ""
 bookingFallbackUrl: "https://example.com/book"
 
 # Used in the first-message/privacy answer. Validate legally before real clients.
-aiDisclosureText: "Hallo, ich bin der digitale Assistent von Glanz & Schnitt Berlin. Ich helfe dir bei Fragen und Terminen und gebe es ans Team weiter, wenn du mit einem Menschen sprechen möchtest."
-consentText: "Mit deiner Nachricht hilfst du uns, deine Anfrage zu bearbeiten. Das Team kann dich zur Terminabstimmung kontaktieren."
+aiDisclosureText: "Hallo, hier ist Tilda von Glanz & Schnitt Berlin. Ich helfe dir gern mit Terminen und Fragen."
+consentText: "Wir nutzen deine Angaben, um deine Anfrage zu bearbeiten und dich zur Terminabstimmung zu kontaktieren."
 privacyContact: "datenschutz@example.com"
 
 # Triggers for immediate owner follow-up/handoff.

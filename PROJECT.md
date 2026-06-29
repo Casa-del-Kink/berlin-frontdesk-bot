@@ -66,13 +66,16 @@ top** of what they already use.
 - Design: sending is isolated in `src/whatsapp.ts` → migrating Twilio → 360dialog = rewrite
   only that file.
 
-## 6. Economics (good news)
+## 6. Economics (updated provider model)
 
-WhatsApp has charged per message since Jul-2025, but:
-- **Service messages (customer writes → you reply within 24h) = FREE.** The core flow costs ~€0 in fees.
-- Only **proactive templates** (reminders, re-engagement) cost: in Germany utility ~**€0.0456**,
-  marketing ~**€0.1131** per message.
-- Total cost ≈ LLM tokens + BSP subscription (~€0–49/mo) + hosting (Hetzner). High margin.
+See `docs/provider-cost-financial-model.md` for the detailed ElevenLabs/Twilio/OpenRouter model.
+
+Current planning conclusion:
+
+- WhatsApp has excellent margins. Twilio Germany pricing observed Jun 2026: customer-window/free-form messages cost Twilio **$0.005/message**; utility templates outside the customer window cost **$0.060/message** including Meta + Twilio; marketing templates cost **$0.1415/message** and should be avoided in the pilot.
+- Phone/voice is also margin-positive if bundled with included minutes and overage. ElevenAgents Creator is the first pilot plan: **$22/mo**, **275 call minutes**, **10 concurrent calls**, additional call minutes shown as **$0.08/min**. Twilio Germany local inbound voice is **$0.010/min** plus **$1.35/mo** for a local number.
+- Modelled gross margins: WhatsApp pilot at **€399/mo ≈ 93.9% GM**; full front desk with **300 voice min at €599/mo ≈ 91.4% GM**; voice-heavy **1,000 min at €899/mo ≈ 85.5% GM**.
+- The real risk is not provider COGS. It is support time, custom integrations, compliance, and unbounded voice usage. Use fair-use limits, paid setup, and voice overage from day 1.
 
 ## 7. Niches (order)
 
