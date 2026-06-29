@@ -1,5 +1,6 @@
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync, rmSync } from "node:fs";
+import { createRequire } from "node:module";
 import { setTimeout as sleep } from "node:timers/promises";
 
 const PORT = Number(process.env.BATTLETEST_PORT || 4321);
@@ -7,6 +8,8 @@ const BASE = `http://127.0.0.1:${PORT}`;
 const TOKEN = "server-battletest-token";
 const STATE_FILE = "data/server-battletest-state.json";
 const CALENDAR_FILE = "data/server-battletest-calendar.json";
+const require = createRequire(import.meta.url);
+const TSX_CLI = require.resolve("tsx/cli");
 
 function removeIfExists(path: string) {
   if (existsSync(path)) rmSync(path);
@@ -41,7 +44,7 @@ function assert(condition: unknown, message: string): asserts condition {
 }
 
 function assertPostgresBackendRequiresDatabaseUrl() {
-  const result = spawnSync(process.execPath, ["./node_modules/.bin/tsx", "-e", "import('./src/store.ts')"], {
+  const result = spawnSync(process.execPath, [TSX_CLI, "-e", "import('./src/store.ts')"], {
     env: { ...process.env, STORE_BACKEND: "postgres", DATABASE_URL: "", POSTGRES_URL: "", STATE_FILE: "data/postgres-missing-url-test.json" },
     encoding: "utf8",
   });
@@ -71,7 +74,7 @@ async function main() {
   removeIfExists(CALENDAR_FILE);
   assertPostgresBackendRequiresDatabaseUrl();
 
-  const child = spawn(process.execPath, ["./node_modules/.bin/tsx", "src/server.ts"], {
+  const child = spawn(process.execPath, [TSX_CLI, "src/server.ts"], {
     env: {
       ...process.env,
       PORT: String(PORT),
