@@ -151,6 +151,7 @@ Use this when external credentials are missing:
 
 ```bash
 npm run first-test:smoke
+npm run voice:smoke
 npm run server:battletest
 ```
 

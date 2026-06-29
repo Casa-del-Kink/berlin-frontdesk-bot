@@ -34,6 +34,22 @@ Authorization: Bearer <SERVER_TOOL_TOKEN>
 Content-Type: application/json
 ```
 
+## Credential-free voice tool smoke
+
+Before connecting ElevenLabs, run the deterministic local smoke against the real Express endpoints with fake calendar and JSON state:
+
+```bash
+npm run voice:smoke
+```
+
+Expected marker:
+
+```text
+VOICE_AGENT_TOOL_SMOKE_OK
+```
+
+This starts the server locally, calls availability, booking, follow-up registration, and post-call summary endpoints with bearer auth, then checks phone-channel metrics and retry idempotency. It does not call ElevenLabs, Twilio, Google Calendar, Supabase, or any paid provider.
+
 ## Tool mapping
 
 ### check availability

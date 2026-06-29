@@ -16,6 +16,7 @@
     "supabase:postgres:smoke": "bash scripts/supabase-postgres-smoke.sh",
     "supabase:admin:smoke": "tsx src/supabase-admin-smoke.ts",
     "server:battletest": "tsx src/server-battletest.ts",
+    "voice:smoke": "tsx src/voice-agent-tool-smoke.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
