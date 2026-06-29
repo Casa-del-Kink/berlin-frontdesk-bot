@@ -16,6 +16,8 @@ export interface Client {
   ownerWhatsapp: string;
   bookingFallbackUrl?: string;
   consentText?: string;
+  aiDisclosureText?: string;
+  privacyContact?: string;
   handoffKeywords?: string[];
   hours: { days: number[]; open: string; close: string };
   services: Service[];
@@ -64,7 +66,7 @@ function positiveNumberEnv(name: string) {
   return Number.isFinite(value) && value > 0;
 }
 
-export function validateLivePilotReadiness(): LivePilotReadiness {
+export function validateLivePilotReadiness(cfg?: Client): LivePilotReadiness {
   const storeBackend = process.env.STORE_BACKEND || "json";
   const gates: ReadinessGate[] = [
     {
@@ -104,6 +106,18 @@ export function validateLivePilotReadiness(): LivePilotReadiness {
       detail: "DATA_RETENTION_DAYS must be a positive number and matched to the client privacy notice / DPA.",
     },
     {
+      name: "AI disclosure text",
+      ok: Boolean(cfg?.aiDisclosureText?.trim()),
+      severity: "blocker",
+      detail: "Client YAML must set aiDisclosureText so the first customer message clearly says the assistant is digital/AI.",
+    },
+    {
+      name: "privacy contact",
+      ok: Boolean(cfg?.privacyContact?.trim()),
+      severity: "blocker",
+      detail: "Client YAML must set privacyContact for data export/delete or privacy questions before live traffic.",
+    },
+    {
       name: "production store",
       ok: storeBackend !== "json",
       severity: "warning",
@@ -115,6 +129,12 @@ export function validateLivePilotReadiness(): LivePilotReadiness {
       severity: "warning",
       detail: "TWILIO_WEBHOOK_BASE_URL should match the public HTTPS webhook URL so signature validation uses the same URL Twilio signed.",
     },
+    {
+      name: "AVV/DPA review",
+      ok: process.env.COMPLIANCE_DPA_REVIEWED === "true",
+      severity: "warning",
+      detail: "Set COMPLIANCE_DPA_REVIEWED=true only after AVV/DPA/subprocessor review for hosting, messaging, LLM, calendar, and voice vendors.",
+    },
   ];
 
   return {
@@ -124,8 +144,8 @@ export function validateLivePilotReadiness(): LivePilotReadiness {
   };
 }
 
-export function assertLivePilotReadiness() {
-  const readiness = validateLivePilotReadiness();
+export function assertLivePilotReadiness(cfg?: Client) {
+  const readiness = validateLivePilotReadiness(cfg);
   if (!readiness.ok) {
     const blockers = readiness.gates.filter((gate) => !gate.ok && gate.severity === "blocker").map((gate) => `${gate.name}: ${gate.detail}`);
     throw new Error(`Live pilot readiness blockers:\n- ${blockers.join("\n- ")}`);

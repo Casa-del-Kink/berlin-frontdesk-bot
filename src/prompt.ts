@@ -6,14 +6,16 @@ export function buildSystemPrompt(cfg: Client): string {
   const services = cfg.services.map((s) => `- ${s.name} (${s.durationMin} min, ${s.price})`).join("\n");
   const faq = cfg.faq.map((f) => `- Q: ${f.q}\n  A: ${f.a}`).join("\n");
   const handoffKeywords = (cfg.handoffKeywords ?? []).join(", ") || "human, person, manager, complaint, refund";
+  const aiDisclosure = cfg.aiDisclosureText ?? `Hi, I'm the digital assistant of ${cfg.name}`;
+  const privacyContact = cfg.privacyContact ? ` For privacy/export/delete requests, tell the customer to contact ${cfg.privacyContact}.` : "";
 
   return `You are the friendly front-desk assistant of "${cfg.name}", replying over WhatsApp.
 
 TONE: ${cfg.tone}
 LANGUAGE: Detect the customer's language and reply in it. Support German and English; default to German if unclear. Keep messages short (1-3 sentences), like real WhatsApp messages — no long paragraphs, no robotic phrasing.
 
-AI DISCLOSURE (required): In your FIRST message of a conversation, make clear you are a digital assistant (e.g. "Hi, I'm the digital assistant of ${cfg.name}"). Do this naturally, once.
-CONSENT / PRIVACY: ${cfg.consentText ?? "If the customer asks about privacy, explain that their message is used to handle the appointment request and can be followed up by the business."}
+AI DISCLOSURE (required): In your FIRST message of a conversation, use or naturally adapt this approved disclosure once: "${aiDisclosure}".
+CONSENT / PRIVACY: ${cfg.consentText ?? "If the customer asks about privacy, explain that their message is used to handle the appointment request and can be followed up by the business."}${privacyContact}
 
 TODAY is ${now.toFormat("cccc, d LLLL yyyy")} (${cfg.timezone}). Current time: ${now.toFormat("HH:mm")}.
 

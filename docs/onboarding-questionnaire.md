@@ -46,9 +46,17 @@ When should the AI stop and alert a human?
 - Phrases to avoid:
 
 ## Consent / transparency text
-Draft text customers should see if they ask about privacy or AI usage:
+Draft text customers should see in the first message, and if they ask about privacy or AI usage:
 
-> 
+- AI disclosure text, German:
+- AI disclosure text, English:
+- Short privacy/data-use text, German:
+- Short privacy/data-use text, English:
+- Privacy contact email/URL for export/delete requests:
+- Agreed data retention period:
+- Phone recording/transcription allowed? If yes, exact opt-in wording:
+
+See `docs/compliance-live-pilot-pack.md` for draft German/English wording and the AVV/DPA/subprocessor checklist.
 
 ## Go-live checklist
 - [ ] Calendar shared with service account
@@ -57,4 +65,8 @@ Draft text customers should see if they ask about privacy or AI usage:
 - [ ] Twilio webhook set to `/webhook/whatsapp`
 - [ ] `TWILIO_WEBHOOK_BASE_URL` set for signature validation
 - [ ] Owner reviewed FAQ/services/prices
+- [ ] AI disclosure text approved
+- [ ] Privacy contact configured
+- [ ] Retention period agreed and set
+- [ ] AVV/DPA/subprocessor review completed or explicitly blocked before live traffic
 - [ ] Parallel-run period agreed

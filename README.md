@@ -89,7 +89,8 @@ clients/salon-demo.yaml  ← one business = one file. Adapt = copy and edit.
 - `POST /privacy/retention/purge` supports operator-triggered retention cleanup. It defaults to
   `dryRun: true`; set `dryRun: false` deliberately after checking counts.
 - `GET /readiness/live-pilot` is a bearer-protected gate report for live-pilot blockers
-  (credentials, signature validation, fake calendar, retention policy) and JSON-store warnings.
+  (credentials, signature validation, fake calendar, retention policy, AI disclosure text,
+  privacy contact) and JSON-store / AVV-DPA review warnings.
   Set `REQUIRE_LIVE_PILOT_READINESS=true` only when startup should fail on unresolved blockers.
 - Twilio webhook requests are signature-validated by default. Set `TWILIO_WEBHOOK_BASE_URL`
   to the public tunnel/domain if auto-detection does not match Twilio's URL. Use
@@ -112,4 +113,7 @@ clients/salon-demo.yaml  ← one business = one file. Adapt = copy and edit.
   `docs/production-data-readiness.md`.
 - For production with clinics (health data) → swap Twilio for **360dialog** (German BSP,
   DPA/GDPR) by touching only `whatsapp.ts`.
+- Before real customer traffic, complete the German live-pilot compliance checklist in
+  `docs/compliance-live-pilot-pack.md`; it includes AI disclosure, privacy notice snippets,
+  AVV/DPA subprocessor register, retention choices, and voice recording/transcription cautions.
 - Strategy, scoping and all product decisions live in `PROJECT.md`.
