@@ -68,15 +68,22 @@ calendarId: "ec639255e6fd2473e4ea2e1af60b996dab2f5df5fa5422047fff337ccc523938@gr
 - Keep fake calendar tests as default for CI and no-credential local checks.
 - Real Google tests should use clearly named test events and clean up after themselves.
 
-## Current blocker
+## Current status
 
 The calendar ID is known and configured.
 
-Still needed before a live Google smoke test:
+Service account email:
 
-- service account email
-- `GOOGLE_SA_JSON` in the runtime environment
-- confirmation that the Tilda calendar is shared with that service account
+```text
+tilda-calendar-bot@tilda-dev-500907.iam.gserviceaccount.com
+```
+
+Live Google Calendar smoke has passed against the Tilda dev calendar using the service account JSON supplied out of band. The smoke created, found, deleted, and verified cleanup of a test event.
+
+Still needed for persistent runtime use:
+
+- store `GOOGLE_SA_JSON` in the deployment or Hermes runtime environment
+- keep the Tilda calendar shared with the service account using make changes to events permission
 
 ## Target smoke command
 

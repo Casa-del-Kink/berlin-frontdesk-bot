@@ -114,10 +114,14 @@ Tasks:
 
 Blocked on:
 
+- service account JSON in `GOOGLE_SA_JSON` for persistent runtime or deployment use
+
+Resolved:
+
 - dev Gmail account exists
 - Tilda calendar ID configured in `clients/salon-demo.yaml`: `ec639255e6fd2473e4ea2e1af60b996dab2f5df5fa5422047fff337ccc523938@group.calendar.google.com`
-- service account JSON in `GOOGLE_SA_JSON`
-- calendar shared with service account with event edit permissions
+- service account exists: `tilda-calendar-bot@tilda-dev-500907.iam.gserviceaccount.com`
+- live Google Calendar smoke passed using the uploaded service account JSON
 
 Acceptance criteria:
 
