@@ -10,6 +10,7 @@ Use a simple Node 20+ web service first. The target can be Docker, a VPS process
 npm ci
 npm run typecheck
 npm run style:guard
+npm run secrets:scan
 npm run server:battletest
 npm run deployment:preflight
 npm run deployment:smoke
@@ -114,6 +115,40 @@ Expected marker:
 
 ```text
 DEPLOYMENT_PREFLIGHT_JSON_SMOKE_OK
+```
+
+## Operator readiness bundle
+
+Generate a founder/operator handoff that groups live blockers by owner without scraping console output:
+
+```bash
+ALLOW_OPERATOR_READINESS_BUNDLE_BLOCKERS=true npm run operator:readiness:bundle
+```
+
+Expected review marker while blockers remain:
+
+```text
+OPERATOR_READINESS_BUNDLE_REVIEW_ONLY
+```
+
+The command writes `tmp/tilda-ops-snapshot/operator-readiness-bundle.md` and prints the same content. It is report-only: it does not call Google Calendar, Supabase/Postgres, WhatsApp, or a voice provider.
+
+Machine-readable mode for scheduled checks:
+
+```bash
+ALLOW_OPERATOR_READINESS_BUNDLE_BLOCKERS=true OPERATOR_READINESS_BUNDLE_JSON=true npm run operator:readiness:bundle
+```
+
+Regression-test it locally:
+
+```bash
+npm run operator:readiness:bundle:smoke
+```
+
+Expected marker:
+
+```text
+OPERATOR_READINESS_BUNDLE_SMOKE_OK
 ```
 
 Expected markers:

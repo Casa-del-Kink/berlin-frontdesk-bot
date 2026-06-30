@@ -46,10 +46,12 @@ model-portable: true
 | First-test smoke | `npm run first-test:smoke` | local-state | `FIRST_TEST_SMOKE_OK` | — (per README) |
 | Server battletest | `npm run server:battletest` | local-state | `SERVER_BATTLETEST_OK` | — (per README) |
 | Style guard | `npm run style:guard` | safe | Tilda voice/style check (python3) | — |
+| Secrets scan | `npm run secrets:scan` | safe | `SECRETS_SCAN_OK` | — |
 | Postgres store smoke | `npm run postgres:smoke` | side-effecting | needs test `DATABASE_URL` | — |
 | Google Calendar smoke | `npm run google-calendar:smoke` | side-effecting | needs Google SA creds | — |
 | Live calendar booking | `npm run live-calendar:smoke` | side-effecting | writes a real calendar event | — |
 | Voice agent tool smoke | `npm run voice:smoke` | local-state | ElevenLabs server-tool path | — |
+| Operator readiness bundle smoke | `npm run operator:readiness:bundle:smoke` | local-state | `OPERATOR_READINESS_BUNDLE_SMOKE_OK` | — |
 | Supabase Postgres smoke | `npm run supabase:postgres:smoke` | side-effecting | bash + test DB | — |
 
 ## Verify (what "green" means here)

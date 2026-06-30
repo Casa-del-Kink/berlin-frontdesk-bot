@@ -317,6 +317,7 @@ Tasks:
 - Share the same deployment checks between CLI preflight, protected readiness endpoint, and strict live-startup gate. Done via `src/readiness.ts`.
 - Add battletest coverage for readiness `401`/`409` responses and strict startup refusal when blockers remain. Done.
 - Add `npm run deployment:smoke` for a local hosted-demo handoff smoke that starts the real server, checks health/readiness/metrics, and proves strict startup blocks unsafe env. Done.
+- Add `npm run operator:readiness:bundle` so scheduled/operator handoffs have blocker groups by owner and machine-readable JSON without live provider side effects. Done.
 
 Acceptance criteria:
 
@@ -326,6 +327,7 @@ Acceptance criteria:
 - `/readiness/live-pilot` and `npm run deployment:preflight` report the same blocker/warning model.
 - `REQUIRE_LIVE_PILOT_READINESS=true` refuses server startup while deployment blockers remain.
 - `npm run deployment:smoke` starts the real server with safe fake fixtures and verifies health, protected readiness, blocker status, protected metrics, and strict-startup failure without paid provider traffic.
+- `npm run operator:readiness:bundle:smoke` verifies blocked/review-only markers, owner grouping, and secret redaction for the operator handoff bundle.
 - Fake providers are disabled for live booking.
 - Postgres backend is used for live pilot.
 - Webhook signature validation is enabled for live Twilio webhooks.
@@ -349,7 +351,8 @@ If no new credentials are available, implement these in order:
 12. Add owner-alert destination readiness gate, including `OWNER_ALERT_LOG_ONLY_ACCEPTED=true` for internal hosted demos only. Done.
 13. Align readiness/preflight/strict startup on one deployment gate model. Done via `src/readiness.ts`, `/readiness/live-pilot`, and `REQUIRE_LIVE_PILOT_READINESS=true` battletest coverage.
 14. Add deployment smoke for hosted-demo handoff. Done via `npm run deployment:smoke`.
-15. Next credential-free chunk: add operator-facing failure triage and live-demo checklist automation, or add hosted-env examples for the chosen deployment target.
+15. Add operator-facing failure triage and live-demo checklist automation. Done via `npm run operator:readiness:bundle`.
+16. Next credential-free chunk: add hosted-env examples for the chosen deployment target or founder standup automation.
 
 P2 is no longer an infrastructure blocker. Re-run the Supabase Postgres smoke only after schema/backend changes or when moving the runtime to a new host.
 

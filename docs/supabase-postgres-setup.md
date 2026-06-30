@@ -25,7 +25,7 @@ db.dicxsxmdyjleigelwaya.supabase.co
 Direct connection template:
 
 ```text
-postgresql://postgres:[YOUR-PASSWORD]@db.dicxsxmdyjleigelwaya.supabase.co:5432/postgres
+postgresql://postgres:<password>@db.<project-ref>.supabase.co:5432/postgres
 ```
 
 Keep the actual password out of git and chat logs when possible.

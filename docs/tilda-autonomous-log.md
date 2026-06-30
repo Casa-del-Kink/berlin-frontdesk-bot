@@ -199,3 +199,40 @@
   - `npm run deployment:smoke` starts the real server with fake fixtures, verifies health/readiness/metrics, and proves strict startup blocks unsafe env.
 - Blocker: live deployment still needs real voice/telephony credentials, real owner alert routing, production webhook URL, and live secrets. No hosted deploy, live Twilio/voice smoke, or live Google Calendar event was attempted.
 - Next chunk: add operator-facing failure triage and live-demo checklist automation for the hosted-demo handoff.
+
+## 2026-06-30T21:05:38Z hourly build loop
+
+- Branch: `main`
+- HEAD before: `511b6d1`
+- HEAD after: this local commit (see `git rev-parse HEAD` after commit)
+- Chunk selected: operator readiness bundle plus tracked secret scan, so scheduled/operator handoffs stop relying on scraped console output and can prove no obvious secret markers are tracked.
+- Files changed:
+  - `.env.example`
+  - `.gitignore`
+  - `docs/deployment-readiness.md`
+  - `docs/supabase-postgres-setup.md`
+  - `docs/tilda-priority-plan.md`
+  - `docs/tilda-autonomous-log.md`
+  - `package.json`
+  - `scripts/check-secrets.py`
+  - `src/operator-readiness-bundle.ts`
+  - `src/operator-readiness-bundle-smoke.ts`
+  - `wiki/runbooks/run.md`
+- Commands run:
+  - `npm run typecheck` -> pass
+  - `npm run style:guard` -> `STYLE_GUARD_OK`
+  - `npm run secrets:scan` -> `SECRETS_SCAN_OK`
+  - `npm run operator:readiness:bundle:smoke` -> `OPERATOR_READINESS_BUNDLE_SMOKE_OK`
+  - `npm run deployment:preflight:smoke` -> `DEPLOYMENT_PREFLIGHT_JSON_SMOKE_OK`
+  - `npm run deployment:smoke` -> `DEPLOYMENT_SMOKE_OK`
+  - `npm run server:battletest` -> `SERVER_BATTLETEST_OK`
+  - `npm run demo:fake` -> `DEMO_FAKE_HAIR_SALON_OK`
+  - `npm run check` -> pass
+  - `npm run first-test:smoke` -> `FIRST_TEST_SMOKE_OK`
+  - `git diff --check` -> pass
+- Verification added:
+  - `npm run operator:readiness:bundle` writes a report-only owner-grouped handoff under ignored `tmp/tilda-ops-snapshot/` and supports JSON mode.
+  - `npm run operator:readiness:bundle:smoke` verifies fail-closed mode, review-only mode, owner grouping, and bearer-token redaction.
+  - `npm run secrets:scan` scans tracked text files for obvious committed secret markers and caught/remediated concrete Postgres URL templates.
+- Blocker: live provider checks were not run. Google Calendar, Supabase/Postgres, WhatsApp, and voice-provider live smokes still require configured credentials plus explicit safe approval.
+- Next chunk: add hosted-env examples for the chosen deployment target or founder standup automation.
