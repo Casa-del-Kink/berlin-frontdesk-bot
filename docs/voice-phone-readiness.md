@@ -91,9 +91,11 @@ Example body:
 }
 ```
 
-Allowed statuses: `booked`, `needs_followup`, `answered`, `missed`, `voicemail`, `failed`.
+Provider retry safety: `callId`/`call_id`/`conversation_id` is required. The endpoint also accepts common nested provider shapes such as `data.conversation_id`, `data.caller_id`, and `data.analysis.transcript_summary` so adapter changes do not require raw transcript storage.
 
-Data minimization default: store only phone, call ID, status, short summary, and optional external transcript/recording URLs. Avoid storing raw transcripts unless the client has reviewed consent wording, retention, and DPA/AVV coverage.
+Allowed statuses: `booked`, `needs_followup`, `answered`, `missed`, `voicemail`, `failed`. If no allowed status is supplied, the normalizer maps provider outcome hints like `human_handoff_requested` to `needs_followup`, voicemail/missed/failure hints to the matching status, and successful answered calls to `answered`.
+
+Data minimization default: store only phone, call ID, status, and short summary. Raw transcripts are ignored by the post-call normalizer. Transcript/recording URLs are also not stored unless `VOICE_STORE_TRANSCRIPT_URLS=true` / `VOICE_STORE_RECORDING_URLS=true` are deliberately enabled after disclosure, retention, and AVV/DPA review.
 
 ## German compliance cautions for voice
 

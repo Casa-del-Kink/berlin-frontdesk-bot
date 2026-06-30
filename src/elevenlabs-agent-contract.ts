@@ -154,7 +154,7 @@ function buildReport() {
       method: "POST",
       url: endpoint("/webhook/voice/post-call"),
       auth: REDACTED_AUTH,
-      expectedFields: ["callId or call_id", "phone or caller", "status", "summary"],
+      expectedFields: ["callId/call_id/conversation_id", "phone/caller/from", "status/call_status/outcome", "summary/call_summary/analysis summary"],
       allowedStatuses: ["booked", "needs_followup", "answered", "missed", "voicemail", "failed"],
       storageDefault: "Store short summary only; avoid raw transcript or recording storage unless explicitly reviewed and disclosed.",
       successMarker: "Response JSON has ok=true, outcome, and idempotentReplay for provider retries.",
