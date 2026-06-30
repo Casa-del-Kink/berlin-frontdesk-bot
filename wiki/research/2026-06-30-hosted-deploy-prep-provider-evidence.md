@@ -211,6 +211,7 @@ Acceptance criteria:
 
 - `GET /` stays a provider-review-safe CallTilder landing page.
 - `/health` still returns the JSON health response.
+- `npm run landing:contract:smoke` verifies local render and can check `HOSTED_LANDING_BASE_URL` after deployment.
 - landing smoke verifies AI disclosure and footer placeholders.
 - style guard rejects broadening beyond Berlin salons/barbers.
 - no provider submission or outreach happens without approval.

@@ -10,6 +10,7 @@
     "check": "tsx src/check.ts",
     "style:guard": "python3 scripts/check-style-guard.py",
     "landing:smoke": "tsx src/landing-smoke.ts",
+    "landing:contract:smoke": "tsx src/landing-contract-smoke.ts",
     "secrets:scan": "python3 scripts/check-secrets.py",
     "first-test:smoke": "tsx src/first-test.ts",
     "google-calendar:smoke": "tsx src/google-calendar-smoke.ts",
