@@ -25,6 +25,7 @@ CHECK_FILES = [
     "docs/tilda-priority-plan.md",
     "docs/tilda-voice-style.md",
     "docs/voice-phone-readiness.md",
+    "src/landing.ts",
     "src/deployment-preflight.ts",
     "src/deployment-smoke.ts",
     "src/fake-provider-demo.ts",

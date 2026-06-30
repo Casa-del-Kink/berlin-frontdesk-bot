@@ -22,6 +22,7 @@ import {
 import { sendWhatsapp } from "./whatsapp.js";
 import { alertOwner as sendOwnerAlert } from "./owner-alerts.js";
 import { normalizeVoicePostCallPayload } from "./voice-post-call.js";
+import { renderLandingPage } from "./landing.js";
 
 const cfg = loadClient();
 const app = express();
@@ -32,7 +33,7 @@ app.use(express.json());
 for (const warning of validateRuntimeEnv()) console.warn(`[config] ${warning}`);
 if (process.env.REQUIRE_LIVE_PILOT_READINESS === "true") assertDeploymentReadiness(cfg);
 
-app.get("/", (_req, res) => res.send(`OK - ${cfg.name}`));
+app.get("/", (_req, res) => res.type("html").send(renderLandingPage()));
 app.get("/health", (_req, res) => res.json({ ok: true, client: cfg.name, storeBackend: getStoreBackend().name, time: new Date().toISOString() }));
 app.get("/readiness/live-pilot", (req, res) => {
   if (!validateToolRequest(req)) return res.status(401).json({ error: "Unauthorized" });
