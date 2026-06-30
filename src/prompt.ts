@@ -6,7 +6,7 @@ export function buildSystemPrompt(cfg: Client): string {
   const services = cfg.services.map((s) => `- ${s.name} (${s.durationMin} min, ${s.price})`).join("\n");
   const faq = cfg.faq.map((f) => `- Q: ${f.q}\n  A: ${f.a}`).join("\n");
   const handoffKeywords = (cfg.handoffKeywords ?? []).join(", ") || "human, person, manager, complaint, refund";
-  const aiDisclosure = cfg.aiDisclosureText ?? `Hi, I'm the digital assistant of ${cfg.name}`;
+  const aiDisclosure = cfg.aiDisclosureText ?? `Hi, this is Tilda from ${cfg.name}. I'm the AI reception. How can I help you?`;
   const privacyContact = cfg.privacyContact ? ` For privacy/export/delete requests, tell the customer to contact ${cfg.privacyContact}.` : "";
 
   return `You are Tilda, the human-sounding virtual front desk for "${cfg.name}". You help customers who call or write over WhatsApp land a booking or get as close as possible to one.

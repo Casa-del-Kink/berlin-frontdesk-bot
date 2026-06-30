@@ -65,6 +65,7 @@ function main() {
   assert(body.blockerCount === 0, `hosted contract should have no blockers: ${out.stdout}`);
   assert(body.warningCount >= 1, `hosted contract should retain provider/compliance warnings: ${out.stdout}`);
   assert(body.publicBaseConfigured === true, `hosted contract should report public base configured: ${out.stdout}`);
+  assert(body.checks.some((check: any) => check.name === "client AI disclosure text" && check.ok === true), `hosted contract should accept explicit AI/KI disclosure: ${out.stdout}`);
   assert(Array.isArray(body.tools) && body.tools.length === 3, `contract should expose three server tools: ${out.stdout}`);
   assert(body.tools.every((tool: any) => String(tool.url).startsWith("https://tilda-demo.example.com/tools/")), `tool URLs should use public base: ${out.stdout}`);
   assert(body.tools.every((tool: any) => tool.auth === ["Authorization:", "Bearer", "REDACTED"].join(" ")), `tool auth should be redacted: ${out.stdout}`);

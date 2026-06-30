@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { loadClient } from "./config.js";
+import { hasExplicitAiDisclosure, loadClient } from "./config.js";
 
 type Severity = "blocker" | "warning";
 
@@ -100,10 +100,10 @@ function checks(): Check[] {
     },
     {
       name: "client AI disclosure text",
-      ok: Boolean(cfg.aiDisclosureText?.trim()),
+      ok: hasExplicitAiDisclosure(cfg.aiDisclosureText),
       severity: "blocker",
-      detail: "The voice opening must clearly disclose the AI/digital assistant in client-approved wording.",
-      next: "Keep the opening close to aiDisclosureText in the client YAML and the compliance live-pilot pack.",
+      detail: "The voice opening must clearly disclose AI/KI in client-approved wording.",
+      next: "Keep the opening close to aiDisclosureText in the client YAML, preferably 'Ich bin die KI-Rezeption'.",
     },
     {
       name: "privacy contact",

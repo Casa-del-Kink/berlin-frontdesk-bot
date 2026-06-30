@@ -25,7 +25,7 @@ Demo calendar: Tilda dev calendar.
 
 Tilda:
 
-> Hallo, hier ist Tilda von Glanz & Schnitt Berlin. Ich helfe dir gern mit Terminen und Fragen.
+> Hallo, hier ist Tilda von Glanz & Schnitt Berlin. Ich bin die KI-Rezeption. Wie kann ich dir helfen?
 
 Customer:
 

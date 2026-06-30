@@ -16,7 +16,7 @@ ownerWhatsapp: ""
 bookingFallbackUrl: "https://example.com/book"
 
 # Used in the first-message/privacy answer. Validate legally before real clients.
-aiDisclosureText: "Hallo, hier ist Tilda von Glanz & Schnitt Berlin. Ich helfe dir gern mit Terminen und Fragen."
+aiDisclosureText: "Hallo, hier ist Tilda von Glanz & Schnitt Berlin. Ich bin die KI-Rezeption. Wie kann ich dir helfen?"
 consentText: "Wir nutzen deine Angaben, um deine Anfrage zu bearbeiten und dich zur Terminabstimmung zu kontaktieren."
 privacyContact: "datenschutz@example.com"
 

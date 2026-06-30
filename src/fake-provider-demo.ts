@@ -124,7 +124,7 @@ async function main() {
     const selectedSlot = haircutSlots[0].iso;
 
     const bookingTranscript = [
-      transcriptLine("Tilda", "Hallo, hier ist Tilda von Glanz & Schnitt Berlin. Ich helfe dir gern mit Terminen und Fragen."),
+      transcriptLine("Tilda", "Hallo, hier ist Tilda von Glanz & Schnitt Berlin. Ich bin die KI-Rezeption. Wie kann ich dir helfen?"),
       transcriptLine("Customer", "Hi, ich brauche einen Termin für einen Damenhaarschnitt."),
       transcriptLine("Tilda", "Gern. Ich schaue nach den nächsten freien Terminen."),
       transcriptLine("Tool", `check_availability returned ${formatSlot(haircutSlots[0].iso)} and ${formatSlot(haircutSlots[1].iso)}`),

@@ -66,6 +66,11 @@ function positiveNumberEnv(name: string) {
   return Number.isFinite(value) && value > 0;
 }
 
+export function hasExplicitAiDisclosure(text?: string) {
+  const value = text?.toLowerCase() ?? "";
+  return /\bai\b/.test(value) || /\bki\b/.test(value);
+}
+
 export function validateLivePilotReadiness(cfg?: Client): LivePilotReadiness {
   const storeBackend = process.env.STORE_BACKEND || "json";
   const gates: ReadinessGate[] = [
@@ -107,9 +112,9 @@ export function validateLivePilotReadiness(cfg?: Client): LivePilotReadiness {
     },
     {
       name: "AI disclosure text",
-      ok: Boolean(cfg?.aiDisclosureText?.trim()),
+      ok: hasExplicitAiDisclosure(cfg?.aiDisclosureText),
       severity: "blocker",
-      detail: "Client YAML must set aiDisclosureText so the first customer message clearly says the assistant is digital/AI.",
+      detail: "Client YAML must set aiDisclosureText with explicit AI/KI wording, e.g. 'Ich bin die KI-Rezeption'.",
     },
     {
       name: "privacy contact",

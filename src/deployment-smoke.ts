@@ -115,6 +115,10 @@ async function main() {
       `readiness should flag fake calendar: ${JSON.stringify(out.body)}`,
     );
     assert(
+      out.body.checks.some((check: any) => check.name === "AI disclosure text" && check.ok === true),
+      `readiness should accept only explicit AI/KI disclosure text: ${JSON.stringify(out.body)}`,
+    );
+    assert(
       out.body.checks.some((check: any) => check.name === "store backend postgres" && check.ok === false),
       `readiness should flag JSON store: ${JSON.stringify(out.body)}`,
     );

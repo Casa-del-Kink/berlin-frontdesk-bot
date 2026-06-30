@@ -67,23 +67,23 @@ Use these as draft text. Keep the wording short and natural in the channel.
 
 ### WhatsApp first message - German
 
-> Hallo, hier ist Tilda von {{businessName}}. Ich helfe dir gern mit Terminen und Fragen. Wenn etwas unklar ist oder du mit dem Team sprechen möchtest, gebe ich es direkt weiter.
+> Hallo, hier ist Tilda von {{businessName}}. Ich bin die KI-Rezeption. Wie kann ich dir helfen? Wenn etwas unklar ist oder du mit dem Team sprechen möchtest, gebe ich es direkt weiter.
 
 ### WhatsApp first message - English
 
-> Hi, this is Tilda from {{businessName}}. I can help with appointments and questions. If anything needs the team, I will pass it on.
+> Hi, this is Tilda from {{businessName}}. I’m the AI reception. How can I help you? If anything needs the team, I will pass it on.
 
 ### Phone opening - German, no recording/transcription
 
-> Hallo, hier ist Tilda von {{businessName}}. Ich helfe dir gern mit Terminen und Fragen.
+> Hallo, hier ist Tilda von {{businessName}}. Ich bin die KI-Rezeption. Wie kann ich dir helfen?
 
 ### Phone opening - English, no recording/transcription
 
-> Hi, this is Tilda from {{businessName}}. I can help with appointments and questions.
+> Hi, this is Tilda from {{businessName}}. I’m the AI reception. How can I help you?
 
 ### Phone opening - German, with recording/transcription
 
-> Hallo, hier ist Tilda von {{businessName}}. Ich helfe dir gern mit Terminen und Fragen. Damit das Team deine Anfrage bearbeiten kann, kann dieser Anruf zusammengefasst oder transkribiert werden. Bist du damit einverstanden?
+> Hallo, hier ist Tilda von {{businessName}}. Ich bin die KI-Rezeption. Wie kann ich dir helfen? Damit das Team deine Anfrage bearbeiten kann, kann dieser Anruf zusammengefasst oder transkribiert werden. Bist du damit einverstanden?
 
 Only continue recording/transcription after an affirmative answer. If the caller refuses, route to a non-recorded handoff path or human callback.
 
