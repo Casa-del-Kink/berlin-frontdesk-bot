@@ -8,8 +8,24 @@ export interface NormalizeVoicePostCallOptions {
   storeRecordingUrl?: boolean;
 }
 
+export interface VoiceFollowUpDraft {
+  shouldSend: boolean;
+  status: CallOutcome["status"];
+  channel: "whatsapp";
+  phone: string;
+  customerName?: string;
+  requestedService?: string;
+  preferredTime?: string;
+  confirmedTime?: string;
+  missingInfo?: string;
+  text?: string;
+  reviewRequired: boolean;
+  reason: string;
+}
+
 export interface NormalizeVoicePostCallResult {
   outcome?: CallOutcome;
+  followUpDraft?: VoiceFollowUpDraft;
   warnings: string[];
   error?: string;
 }
@@ -63,6 +79,105 @@ function normalizeStatus(value: unknown, payload: Record<string, unknown>): Call
   return "answered";
 }
 
+function pickFollowUpField(body: Record<string, unknown>, field: string, snake: string) {
+  return firstString(body, [
+    [field],
+    [snake],
+    ["followUp", field],
+    ["follow_up", snake],
+    ["data", field],
+    ["data", snake],
+    ["data", "followUp", field],
+    ["data", "follow_up", snake],
+    ["data", "analysis", field],
+    ["data", "analysis", snake],
+    ["analysis", field],
+    ["analysis", snake],
+  ]);
+}
+
+function compact(parts: (string | undefined)[]) {
+  return parts.filter((part) => part?.trim()).join(" ");
+}
+
+function buildVoiceFollowUpDraft(body: Record<string, unknown>, outcome: CallOutcome): VoiceFollowUpDraft {
+  const customerName = pickFollowUpField(body, "customerName", "customer_name");
+  const requestedService = pickFollowUpField(body, "requestedService", "requested_service") || pickFollowUpField(body, "service", "service");
+  const preferredTime = pickFollowUpField(body, "preferredTime", "preferred_time");
+  const confirmedTime = pickFollowUpField(body, "confirmedTime", "confirmed_time");
+  const missingInfo = pickFollowUpField(body, "missingInfo", "missing_info");
+  const hello = customerName ? `Hallo ${customerName},` : "Hallo,";
+
+  if (outcome.status === "booked") {
+    const appointment = compact([requestedService ? `für ${requestedService}` : undefined, confirmedTime ? `am ${confirmedTime}` : undefined]);
+    return {
+      shouldSend: true,
+      status: outcome.status,
+      channel: "whatsapp",
+      phone: outcome.phone,
+      customerName,
+      requestedService,
+      preferredTime,
+      confirmedTime,
+      missingInfo,
+      text: `${hello} dein Termin${appointment ? ` ${appointment}` : ""} ist eingetragen. Falls etwas nicht passt, antworte einfach hier.`,
+      reviewRequired: false,
+      reason: "booked appointment confirmation draft",
+    };
+  }
+
+  if (outcome.status === "needs_followup") {
+    const request = compact([requestedService ? `wegen ${requestedService}` : undefined, preferredTime ? `für ${preferredTime}` : undefined]);
+    return {
+      shouldSend: true,
+      status: outcome.status,
+      channel: "whatsapp",
+      phone: outcome.phone,
+      customerName,
+      requestedService,
+      preferredTime,
+      confirmedTime,
+      missingInfo,
+      text: missingInfo
+        ? `${hello} danke für deinen Anruf${request ? ` ${request}` : ""}. Damit wir dich passend einplanen können: ${missingInfo}`
+        : `${hello} danke für deinen Anruf${request ? ` ${request}` : ""}. Wir melden uns mit einem passenden Vorschlag.`,
+      reviewRequired: true,
+      reason: missingInfo ? "missing information follow-up draft" : "owner follow-up request draft",
+    };
+  }
+
+  if (outcome.status === "missed" || outcome.status === "voicemail" || outcome.status === "failed") {
+    return {
+      shouldSend: true,
+      status: outcome.status,
+      channel: "whatsapp",
+      phone: outcome.phone,
+      customerName,
+      requestedService,
+      preferredTime,
+      confirmedTime,
+      missingInfo,
+      text: `${hello} wir haben deinen Anruf gesehen. Worum geht es, und wann passt es dir?`,
+      reviewRequired: true,
+      reason: "missed or failed call follow-up draft",
+    };
+  }
+
+  return {
+    shouldSend: false,
+    status: outcome.status,
+    channel: "whatsapp",
+    phone: outcome.phone,
+    customerName,
+    requestedService,
+    preferredTime,
+    confirmedTime,
+    missingInfo,
+    reviewRequired: true,
+    reason: "answered call did not require an automatic follow-up draft",
+  };
+}
+
 export function normalizeVoicePostCallPayload(body: unknown, options: NormalizeVoicePostCallOptions = {}): NormalizeVoicePostCallResult {
   if (!isObject(body)) return { warnings: [], error: "Invalid JSON body" };
 
@@ -113,16 +228,19 @@ export function normalizeVoicePostCallPayload(body: unknown, options: NormalizeV
   if (recordingUrl && !options.storeRecordingUrl) warnings.push("Recording URL not stored because recording URL storage is disabled by default.");
 
   const statusValue = firstString(body, [["status"], ["call_status"], ["data", "status"], ["data", "call_status"]]);
+  const outcome: CallOutcome = {
+    callId,
+    phone,
+    status: normalizeStatus(statusValue, body),
+    summary: rawSummary ? rawSummary.slice(0, 1000) : undefined,
+    transcriptUrl: options.storeTranscriptUrl ? transcriptUrl : undefined,
+    recordingUrl: options.storeRecordingUrl ? recordingUrl : undefined,
+    createdAt: (options.now ?? new Date()).toISOString(),
+  };
+
   return {
     warnings,
-    outcome: {
-      callId,
-      phone,
-      status: normalizeStatus(statusValue, body),
-      summary: rawSummary ? rawSummary.slice(0, 1000) : undefined,
-      transcriptUrl: options.storeTranscriptUrl ? transcriptUrl : undefined,
-      recordingUrl: options.storeRecordingUrl ? recordingUrl : undefined,
-      createdAt: (options.now ?? new Date()).toISOString(),
-    },
+    outcome,
+    followUpDraft: buildVoiceFollowUpDraft(body, outcome),
   };
 }

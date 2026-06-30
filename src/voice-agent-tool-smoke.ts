@@ -164,19 +164,40 @@ async function main() {
     assert(out.res.ok && out.body?.idempotentReplay === true, `voice lead retry should be idempotent: ${out.res.status} ${JSON.stringify(out.body)}`);
     assert(countOccurrences(stdout, "Follow-up needed: Mina Hoffmann") === 1, `voice lead retry should not duplicate owner alert: ${stdout}`);
 
-    out = await json("/webhook/voice/post-call", authJson({ callId: "voice-smoke-call-1", phone: "+491****7001", status: "booked", summary: "Caller booked a haircut through the voice agent smoke." }));
+    out = await json(
+      "/webhook/voice/post-call",
+      authJson({
+        callId: "voice-smoke-call-1",
+        phone: "+491****7001",
+        status: "booked",
+        summary: "Caller booked a haircut through the voice agent smoke.",
+        customerName: "Laura",
+        requestedService: "Damenhaarschnitt",
+        confirmedTime: "Dienstag um 14 Uhr",
+      }),
+    );
     assert(out.res.ok, `voice post-call failed: ${out.res.status} ${JSON.stringify(out.body)}`);
     assert(out.body?.outcome?.status === "booked" && out.body?.idempotentReplay === false, `voice post-call should store booked outcome: ${JSON.stringify(out.body)}`);
+    assert(out.body?.followUpDraft?.text === "Hallo Laura, dein Termin für Damenhaarschnitt am Dienstag um 14 Uhr ist eingetragen. Falls etwas nicht passt, antworte einfach hier.", `voice post-call should return structured booking follow-up draft: ${JSON.stringify(out.body)}`);
 
     out = await json("/webhook/voice/post-call", authJson({ callId: "voice-smoke-call-1", phone: "+491****7001", status: "booked", summary: "Provider retry duplicate." }));
     assert(out.res.ok && out.body?.idempotentReplay === true, `voice post-call retry should be idempotent: ${out.res.status} ${JSON.stringify(out.body)}`);
 
     out = await json(
       "/webhook/voice/post-call",
-      authJson({ callId: "voice-smoke-call-2", phone: "+491****7003", status: "needs_followup", summary: "Caller asked for colour advice and a human callback." }),
+      authJson({
+        callId: "voice-smoke-call-2",
+        phone: "+491****7003",
+        status: "needs_followup",
+        summary: "Caller asked for colour advice and a human callback.",
+        customerName: "Mina",
+        requestedService: "Balayage",
+        preferredTime: "morgen Nachmittag",
+      }),
     );
     assert(out.res.ok, `voice follow-up post-call failed: ${out.res.status} ${JSON.stringify(out.body)}`);
     assert(out.body?.outcome?.status === "needs_followup" && out.body?.idempotentReplay === false, `voice follow-up post-call should store outcome: ${JSON.stringify(out.body)}`);
+    assert(out.body?.followUpDraft?.reviewRequired === true && out.body?.followUpDraft?.text?.includes("morgen Nachmittag"), `voice follow-up post-call should return reviewed draft: ${JSON.stringify(out.body)}`);
     await waitForOutput(() => stdout, "Phone follow-up needed: +491****7003 · needs_followup");
     assert(countOccurrences(stdout, "Phone follow-up needed: +491****7003 · needs_followup") === 1, `voice follow-up post-call should alert owner once: ${stdout}`);
 

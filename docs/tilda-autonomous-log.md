@@ -236,3 +236,33 @@
   - `npm run secrets:scan` scans tracked text files for obvious committed secret markers and caught/remediated concrete Postgres URL templates.
 - Blocker: live provider checks were not run. Google Calendar, Supabase/Postgres, WhatsApp, and voice-provider live smokes still require configured credentials plus explicit safe approval.
 - Next chunk: add hosted-env examples for the chosen deployment target or founder standup automation.
+
+## 2026-06-30T22:00:32Z hourly build loop
+
+- Branch: `main`
+- HEAD before: `a04217e`
+- HEAD after: this local commit (see `git rev-parse HEAD` after commit)
+- Chunk selected: voice post-call follow-up draft seam, so ElevenLabs/Twilio call outcomes can return reviewed WhatsApp drafts from typed fields without storing or sending raw transcripts.
+- Files changed:
+  - `src/voice-post-call.ts`
+  - `src/server.ts`
+  - `src/voice-post-call-smoke.ts`
+  - `src/voice-agent-tool-smoke.ts`
+  - `docs/voice-phone-readiness.md`
+  - `docs/tilda-autonomous-log.md`
+- Commands run:
+  - `npm run voice:post-call:smoke` -> `VOICE_POST_CALL_NORMALIZER_SMOKE_OK`
+  - `npm run typecheck` -> pass
+  - `npm run style:guard` -> `STYLE_GUARD_OK`
+  - `npm run voice:smoke` -> `VOICE_AGENT_TOOL_SMOKE_OK`
+  - `npm run secrets:scan` -> `SECRETS_SCAN_OK`
+  - `git diff --check` -> pass
+  - `npm run server:battletest` -> `SERVER_BATTLETEST_OK`
+  - `npm run check` -> pass
+- Verification added:
+  - Post-call normalizer now returns `followUpDraft` for booked, follow-up, missed/voicemail/failed, and answered cases.
+  - Drafts are built from typed fields such as `customerName`, `requestedService`, `preferredTime`, `confirmedTime`, and `missingInfo`.
+  - Server post-call response exposes the draft but does not auto-send it.
+  - Voice HTTP smoke asserts booking and follow-up drafts through the real Express endpoint.
+- Blocker: no live voice/telephony or WhatsApp provider checks were run. Sending post-call drafts remains intentionally separate from this safe no-credential seam.
+- Next chunk: add an explicit reviewed-send endpoint or operator packet for post-call follow-up drafts, gated by bearer auth and opt-in policy.

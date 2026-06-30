@@ -97,6 +97,29 @@ Allowed statuses: `booked`, `needs_followup`, `answered`, `missed`, `voicemail`,
 
 Data minimization default: store only phone, call ID, status, and short summary. Raw transcripts are ignored by the post-call normalizer. Transcript/recording URLs are also not stored unless `VOICE_STORE_TRANSCRIPT_URLS=true` / `VOICE_STORE_RECORDING_URLS=true` are deliberately enabled after disclosure, retention, and AVV/DPA review.
 
+The webhook response also returns a `followUpDraft`. This is a structured WhatsApp draft, not a live send. It is built from typed fields such as `customerName`, `requestedService`, `preferredTime`, `confirmedTime`, and `missingInfo` so Tilda does not turn raw transcripts into customer messages.
+
+- `booked`: returns a confirmation draft and `reviewRequired: false`.
+- `needs_followup`: returns a callback or missing-information draft and `reviewRequired: true`.
+- `missed`, `voicemail`, `failed`: returns a short reviewed callback draft.
+- `answered`: returns `shouldSend: false` unless a separate tool action created a lead or booking.
+
+Example typed post-call body for a booked call:
+
+```json
+{
+  "callId": "el_call_123",
+  "phone": "+491****4567",
+  "status": "booked",
+  "customerName": "Laura",
+  "requestedService": "Damenhaarschnitt",
+  "confirmedTime": "Dienstag um 14 Uhr",
+  "summary": "Caller booked a haircut."
+}
+```
+
+The returned draft can be reviewed by the operator or a later approved WhatsApp send step. Do not auto-send post-call drafts until the operator confirms the policy, opt-in basis, and owner handoff process.
+
 ## German compliance cautions for voice
 
 Draft-only planning notes; validate with lawyer/Datenschutz review before real clients.

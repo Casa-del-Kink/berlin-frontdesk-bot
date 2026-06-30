@@ -135,7 +135,7 @@ app.post("/webhook/voice/post-call", async (req, res) => {
     );
   }
 
-  res.json({ ok: true, outcome: stored.outcome, idempotentReplay: !stored.inserted, warnings: normalized.warnings });
+  res.json({ ok: true, outcome: stored.outcome, followUpDraft: normalized.followUpDraft, idempotentReplay: !stored.inserted, warnings: normalized.warnings });
 });
 
 // GDPR-support endpoints for first pilots: export/delete one customer's stored conversation and lead data.
