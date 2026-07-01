@@ -37,6 +37,7 @@ model-portable: true
 | Start (no watch) | `npm run start` | local-state | |
 | Fake-provider demo | `npm run demo:fake` | safe | No credentials. |
 | Public demo API smoke | `npm run demo:api:smoke` | local-state | Starts real server with fake calendar/state and proves `/api/demo/*` frontend contract. |
+| Public demo API Cal.com smoke | `npm run demo:api:calcom:smoke` | local-state | Starts real server against a local mock Cal.com API and proves gated `live-booking` demo endpoints use the Cal.com scheduling provider without live calls. |
 
 ## Test
 
@@ -48,6 +49,7 @@ model-portable: true
 | Server battletest | `npm run server:battletest` | local-state | `SERVER_BATTLETEST_OK` | — (per README) |
 | Server Cal.com battletest | `npm run server:calcom:battletest` | local-state | `SERVER_CALCOM_BATTLETEST_OK`; starts real server against a local mock Cal.com API, no live provider calls | — |
 | Public demo API smoke | `npm run demo:api:smoke` | local-state | `DEMO_API_SMOKE_OK` | — |
+| Public demo API Cal.com smoke | `npm run demo:api:calcom:smoke` | local-state | `DEMO_API_CALCOM_SMOKE_OK`; no live provider calls, mock Cal.com only | — |
 | Deployment handoff smoke | `npm run deployment:handoff:smoke` | safe | `DEPLOYMENT_HANDOFF_SMOKE_OK`; no-secret hosted handoff report shape | — |
 | Hosting handoff smoke | `npm run hosting:handoff:smoke` | safe | `HOSTING_HANDOFF_SMOKE_OK`; no-secret hosting target checklist | — |
 | Twilio credential smoke | `npm run twilio:credentials:smoke` | safe | `TWILIO_CREDENTIAL_SMOKE_OK`; verifies API-key-over-Auth-Token outbound REST selection without provider calls | — |
