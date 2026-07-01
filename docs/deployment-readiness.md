@@ -143,6 +143,36 @@ Expected marker:
 DEPLOYMENT_PREFLIGHT_JSON_SMOKE_OK
 ```
 
+## Deployment handoff
+
+Generate a no-secret hosted handoff that tells Michael/Roxu/engineering/provider/compliance exactly which env/proof names remain before a hosted demo or live pilot:
+
+```bash
+npm run deployment:handoff
+```
+
+Expected marker while anything is missing:
+
+```text
+DEPLOYMENT_HANDOFF_BLOCKED
+```
+
+The command writes `tmp/tilda-ops-snapshot/deployment-handoff.md`. It prints only env/proof names and boolean configured status, never secret values, and does not call Google Calendar, Cal.com, Supabase/Postgres, WhatsApp, voice providers, or LLM providers. Use `DEPLOYMENT_HANDOFF_JSON=true npm run deployment:handoff` for scheduled/operator parsing.
+
+Regression-test it locally:
+
+```bash
+npm run deployment:handoff:smoke
+```
+
+Expected marker:
+
+```text
+DEPLOYMENT_HANDOFF_SMOKE_OK
+```
+
+The smoke verifies both Google and Cal.com scheduling-provider handoff branches and checks that sentinel secrets are not printed.
+
 ## Operator readiness bundle
 
 Generate a founder/operator handoff that groups live deployment and voice-agent blockers by owner without scraping console output:

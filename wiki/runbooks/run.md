@@ -47,6 +47,7 @@ model-portable: true
 | First-test smoke | `npm run first-test:smoke` | local-state | `FIRST_TEST_SMOKE_OK` | — (per README) |
 | Server battletest | `npm run server:battletest` | local-state | `SERVER_BATTLETEST_OK` | — (per README) |
 | Public demo API smoke | `npm run demo:api:smoke` | local-state | `DEMO_API_SMOKE_OK` | — |
+| Deployment handoff smoke | `npm run deployment:handoff:smoke` | safe | `DEPLOYMENT_HANDOFF_SMOKE_OK`; no-secret hosted handoff report shape | — |
 | Style guard | `npm run style:guard` | safe | Tilda voice/style check (python3) | — |
 | Secrets scan | `npm run secrets:scan` | safe | `SECRETS_SCAN_OK` | — |
 | Postgres store smoke | `npm run postgres:smoke` | side-effecting | needs test `DATABASE_URL` | — |

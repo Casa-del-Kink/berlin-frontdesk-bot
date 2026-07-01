@@ -119,8 +119,8 @@ async function main() {
     assert(Array.isArray(out.body?.checks), `readiness should expose checks: ${JSON.stringify(out.body)}`);
     assert(Array.isArray(out.body?.blockers) && out.body.blockers.length > 0, `readiness should expose blockers: ${JSON.stringify(out.body)}`);
     assert(
-      out.body.checks.some((check: any) => check.name === "fake calendar disabled" && check.ok === false),
-      `readiness should flag fake calendar: ${JSON.stringify(out.body)}`,
+      out.body.checks.some((check: any) => ["scheduling provider", "scheduling runtime provider"].includes(check.name) && check.ok === false),
+      `readiness should flag unsafe fake/live scheduling configuration: ${JSON.stringify(out.body)}`,
     );
     assert(
       out.body.checks.some((check: any) => check.name === "AI disclosure text" && check.ok === true),
