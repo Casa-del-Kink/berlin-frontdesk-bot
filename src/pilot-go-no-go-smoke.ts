@@ -63,6 +63,8 @@ function main() {
   assert(calcomBody.activeSchedulingProvider === "calcom", `expected active Cal.com provider: ${calcomOut.stdout}`);
   assert(calcomBody.activeSchedulingProofCommands.length === 1, `expected one active Cal.com proof command: ${calcomOut.stdout}`);
   assert(calcomBody.activeSchedulingProofCommands[0] === "npm run calcom:smoke", `expected Cal.com smoke as active proof command: ${calcomOut.stdout}`);
+  assert(calcomBody.commands.safeLocal.includes("npm run operator:demo:calcom:packet"), `expected Cal.com operator packet as selected safe local command: ${calcomOut.stdout}`);
+  assert(!calcomBody.commands.safeLocal.includes("npm run operator:demo:packet"), `Cal.com branch should not point operators at the Google/fake-calendar packet: ${calcomOut.stdout}`);
   assert(calcomBody.commands.liveApprovalRequired.some((command: string) => command === "npm run calcom:smoke"), `expected Cal.com smoke to require approval: ${calcomOut.stdout}`);
   assert(calcomBody.items.some((item: any) => item.lane === "deployment" && item.name === "scheduling live smoke proof" && item.detail.includes("calcom:smoke")), `expected Cal.com scheduling live-smoke blocker: ${calcomOut.stdout}`);
 

@@ -63,6 +63,7 @@ model-portable: true
 | Voice agent tool smoke | `npm run voice:smoke` | local-state | ElevenLabs server-tool path | — |
 | Operator readiness bundle smoke | `npm run operator:readiness:bundle:smoke` | local-state | `OPERATOR_READINESS_BUNDLE_SMOKE_OK` | — |
 | Operator demo packet | `npm run operator:demo:packet` | local-state | `OPERATOR_DEMO_PACKET_OK` | — |
+| Operator Cal.com demo packet | `npm run operator:demo:calcom:packet` | local-state | `OPERATOR_DEMO_CALCOM_PACKET_OK`; starts real server against a local mock Cal.com API and proves one-brain availability/booking, idempotency, post-call draft, and metrics without live calls | — |
 | Provider proof manifest | `npm run provider:proof:manifest` | safe | `PROVIDER_PROOF_MANIFEST_OK`; report-only, no live provider calls | — |
 | Provider proof manifest smoke | `npm run provider:proof:manifest:smoke` | safe | `PROVIDER_PROOF_MANIFEST_SMOKE_OK`; verifies no secret values are printed | — |
 | Supabase Postgres smoke | `npm run supabase:postgres:smoke` | side-effecting | needs test DB | — |

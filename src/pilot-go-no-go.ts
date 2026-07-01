@@ -113,6 +113,10 @@ function schedulingProofItem(): GoNoGoItem {
   };
 }
 
+function operatorDemoPacketCommand() {
+  return schedulingProviderEnv() === "calcom" ? "npm run operator:demo:calcom:packet" : "npm run operator:demo:packet";
+}
+
 function providerProofItems(): GoNoGoItem[] {
   return [
     schedulingProofItem(),
@@ -247,7 +251,7 @@ function buildReport() {
     outputPath,
     items,
     commands: {
-      safeLocal: ["npm run operator:demo:packet", "npm run deployment:smoke", "npm run server:battletest", "npm run voice:smoke"],
+      safeLocal: [operatorDemoPacketCommand(), "npm run deployment:smoke", "npm run server:battletest", "npm run voice:smoke"],
       liveApprovalRequired: proofItems.filter((item) => item.approvalRequired).map((item) => item.command || item.next),
     },
   };

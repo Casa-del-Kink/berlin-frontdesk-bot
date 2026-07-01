@@ -43,6 +43,7 @@
     "operator:readiness:bundle": "tsx src/operator-readiness-bundle.ts",
     "operator:readiness:bundle:smoke": "tsx src/operator-readiness-bundle-smoke.ts",
     "operator:demo:packet": "tsx src/operator-demo-packet.ts",
+    "operator:demo:calcom:packet": "tsx src/operator-demo-calcom-packet.ts",
     "provider:proof:manifest": "tsx src/provider-proof-manifest.ts",
     "provider:proof:manifest:smoke": "tsx src/provider-proof-manifest-smoke.ts",
     "pilot:go-no-go": "tsx src/pilot-go-no-go.ts",
