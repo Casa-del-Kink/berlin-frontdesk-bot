@@ -292,6 +292,40 @@ OPERATOR_DEMO_PACKET_JSON=true npm run operator:demo:packet
 
 Expected JSON marker: `OPERATOR_DEMO_PACKET_OK`, with `noLiveProviderCalls: true` and `liveCommandsRequireApproval` listing live provider checks that remain out of scope.
 
+## Provider proof manifest
+
+Generate a no-credential manifest of live provider proof commands before running any side-effecting smoke:
+
+```bash
+npm run provider:proof:manifest
+```
+
+Expected marker:
+
+```text
+PROVIDER_PROOF_MANIFEST_OK
+```
+
+The command writes `tmp/tilda-ops-snapshot/provider-proof-manifest.md`. It is report-only and does not call Google Calendar, Cal.com, Supabase/Postgres, WhatsApp, voice providers, or LLM providers. It now prints `activeSchedulingProvider`, marks Google/Cal.com scheduling proof items as `active` or `alternative`, and lists only the active scheduling proof commands for the selected `SCHEDULING_PROVIDER`.
+
+Machine-readable mode for scheduled checks:
+
+```bash
+PROVIDER_PROOF_MANIFEST_JSON=true npm run provider:proof:manifest
+```
+
+Regression-test the manifest shape locally:
+
+```bash
+npm run provider:proof:manifest:smoke
+```
+
+Expected marker:
+
+```text
+PROVIDER_PROOF_MANIFEST_SMOKE_OK
+```
+
 ## Pilot go/no-go report
 
 Generate a no-credential go/no-go queue that combines deployment blockers, voice contract blockers, and remaining live proof items into one owner-routed artifact:

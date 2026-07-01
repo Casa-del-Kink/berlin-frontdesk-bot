@@ -6,6 +6,7 @@ const outputPath = process.env.PROVIDER_PROOF_MANIFEST_PATH || "tmp/tilda-ops-sn
 
 type Owner = "Michael/Roxu" | "operator" | "provider" | "engineering" | "compliance";
 type SideEffect = "none" | "creates-and-deletes-fixture" | "may-keep-visible-fixture" | "sends-provider-traffic";
+type SchedulingMode = "active" | "alternative" | "always";
 
 type ProviderProof = {
   id: string;
@@ -16,6 +17,7 @@ type ProviderProof = {
   command: string;
   expectedMarker: string;
   sideEffect: SideEffect;
+  schedulingMode?: SchedulingMode;
   approvalRequired: boolean;
   cleanupProof: string;
   blockerIfMissing: string;
@@ -31,17 +33,24 @@ const SECRET_VALUE_PATTERNS = [
   /GOOGLE_SA_JSON\s*=\s*\{.+\}/i,
 ];
 
+function activeSchedulingProvider(): "google" | "calcom" {
+  const raw = (process.env.SCHEDULING_PROVIDER || process.env.BOOKING_PROVIDER || "google").trim().toLowerCase();
+  return raw === "calcom" || raw === "cal.com" ? "calcom" : "google";
+}
+
 function proofItems(): ProviderProof[] {
+  const schedulingProvider = activeSchedulingProvider();
   return [
     {
       id: "google-calendar-readonly",
       owner: "provider",
-      purpose: "Prove the service account can reach the Tilda dev calendar without creating bookings.",
+      purpose: "Prove the service account can reach the Tilda dev calendar and safely create/find/delete a uniquely marked fixture.",
       requiredEnv: ["GOOGLE_SA_JSON", "CLIENT_FILE with calendarId", "USE_FAKE_CALENDAR=false"],
       optionalEnv: ["KEEP_SMOKE_EVENT=false"],
       command: "USE_FAKE_CALENDAR=false npm run google-calendar:smoke",
       expectedMarker: "GOOGLE_CALENDAR_SMOKE_OK",
       sideEffect: "creates-and-deletes-fixture",
+      schedulingMode: schedulingProvider === "google" ? "active" : "alternative",
       approvalRequired: true,
       cleanupProof: "Reports deleted_event_id unless KEEP_SMOKE_EVENT=true is deliberately set for human-visible proof.",
       blockerIfMissing: "Missing service-account JSON or calendar access blocks confirmed booking demos.",
@@ -56,6 +65,7 @@ function proofItems(): ProviderProof[] {
       command: "USE_FAKE_CALENDAR=false npm run live-calendar:smoke",
       expectedMarker: "LIVE_CALENDAR_BOOKING_SMOKE_OK",
       sideEffect: "creates-and-deletes-fixture",
+      schedulingMode: schedulingProvider === "google" ? "active" : "alternative",
       approvalRequired: true,
       cleanupProof: "Reports created fixture details and deletion confirmation, or states the kept event when visible proof is requested.",
       blockerIfMissing: "Calendar booking remains fake-provider only.",
@@ -70,6 +80,7 @@ function proofItems(): ProviderProof[] {
       command: "npm run calcom:smoke",
       expectedMarker: "CALCOM_SMOKE_OK",
       sideEffect: "creates-and-deletes-fixture",
+      schedulingMode: schedulingProvider === "calcom" ? "active" : "alternative",
       approvalRequired: true,
       cleanupProof: "Reports created_booking_uid, verified_booking_uid, and cancelled_booking_uid unless CALCOM_KEEP_SMOKE_BOOKING=true is deliberately set.",
       blockerIfMissing: "Cal.com scheduling remains contract-tested only and not proven against the hosted booking layer.",
@@ -198,13 +209,19 @@ function envStatus(requiredEnv: string[]) {
 
 function buildReport() {
   const items = proofItems();
-  const reportItems = items.map((item) => ({ ...item, envStatus: envStatus(item.requiredEnv) }));
+  const reportItems = items.map((item) => ({ ...item, schedulingMode: item.schedulingMode ?? "always", envStatus: envStatus(item.requiredEnv) }));
   const approvalRequiredCount = items.filter((item) => item.approvalRequired).length;
   const providerTrafficCount = items.filter((item) => item.sideEffect === "sends-provider-traffic").length;
+  const schedulingProvider = activeSchedulingProvider();
+  const activeSchedulingProofCommands = items
+    .filter((item) => item.schedulingMode === "active")
+    .map((item) => item.command);
   return {
     marker: "PROVIDER_PROOF_MANIFEST_OK",
     generatedAt: new Date().toISOString(),
     mode: "report-only no-secret provider proof plan",
+    activeSchedulingProvider: schedulingProvider,
+    activeSchedulingProofCommands,
     outputPath,
     itemCount: items.length,
     approvalRequiredCount,
@@ -227,6 +244,8 @@ function toMarkdown(report: ReturnType<typeof buildReport>) {
     `Generated: ${report.generatedAt}`,
     `Marker: \`${report.marker}\``,
     `Mode: ${report.mode}. This command does not call Google Calendar, Supabase/Postgres, WhatsApp, voice providers, or LLM providers.`,
+    `Active scheduling provider: ${report.activeSchedulingProvider}`,
+    `Active scheduling proof commands: ${report.activeSchedulingProofCommands.map((command) => `\`${command}\``).join(", ")}`,
     `Items: ${report.itemCount}`,
     `Approval-required checks: ${report.approvalRequiredCount}`,
     `Provider-traffic checks: ${report.providerTrafficCount}`,
@@ -242,6 +261,7 @@ function toMarkdown(report: ReturnType<typeof buildReport>) {
       `- Command: \`${item.command}\``,
       `- Expected marker: \`${item.expectedMarker}\``,
       `- Side effect: ${item.sideEffect}`,
+      `- Scheduling mode: ${item.schedulingMode}`,
       `- Approval required: ${String(item.approvalRequired)}`,
       `- Cleanup proof: ${item.cleanupProof}`,
       `- Blocker if missing: ${item.blockerIfMissing}`,

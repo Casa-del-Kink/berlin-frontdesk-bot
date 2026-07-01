@@ -41,6 +41,10 @@ function main() {
   assert(body.marker === "PROVIDER_PROOF_MANIFEST_OK", `expected provider proof marker: ${out.stdout}`);
   assert(body.mode === "report-only no-secret provider proof plan", `expected report-only mode: ${out.stdout}`);
   assert(body.noSecretsPrinted === true, `expected noSecretsPrinted true: ${out.stdout}`);
+  assert(body.activeSchedulingProvider === "google", `expected google as default active scheduling provider: ${out.stdout}`);
+  assert(Array.isArray(body.activeSchedulingProofCommands), `expected active scheduling commands: ${out.stdout}`);
+  assert(body.activeSchedulingProofCommands.includes("USE_FAKE_CALENDAR=false npm run google-calendar:smoke"), `expected Google smoke in active scheduling commands: ${out.stdout}`);
+  assert(!body.activeSchedulingProofCommands.includes("npm run calcom:smoke"), `default Google mode should not mark Cal.com as active: ${out.stdout}`);
   assert(body.itemCount >= 9, `expected substantial provider proof items: ${out.stdout}`);
   assert(body.approvalRequiredCount >= 7, `expected live checks to require approval: ${out.stdout}`);
   assert(body.providerTrafficCount >= 2, `expected provider-traffic checks to be separated: ${out.stdout}`);
@@ -68,7 +72,20 @@ function main() {
   assert(items.some((item) => item.id === "elevenlabs-voice-agent-contract" && item.expectedMarker === "VOICE_AGENT_CONTRACT_OK"), `expected voice contract marker: ${out.stdout}`);
   assert(items.some((item) => item.id === "google-calendar-live-booking" && item.cleanupProof.includes("visible proof")), `expected visible-proof cleanup guidance: ${out.stdout}`);
   assert(items.some((item) => item.id === "calcom-live-booking" && item.expectedMarker === "CALCOM_SMOKE_OK" && item.cleanupProof.includes("cancelled_booking_uid")), `expected Cal.com smoke cleanup guidance: ${out.stdout}`);
+  assert(items.some((item) => item.id === "google-calendar-live-booking" && item.schedulingMode === "active"), `expected Google booking proof to be active by default: ${out.stdout}`);
+  assert(items.some((item) => item.id === "calcom-live-booking" && item.schedulingMode === "alternative"), `expected Cal.com booking proof to be alternative by default: ${out.stdout}`);
   assert(items.some((item) => item.id === "reviewed-whatsapp-followup-send" && item.sideEffect === "sends-provider-traffic"), `expected WhatsApp send traffic flag: ${out.stdout}`);
+
+  const calcomOut = run({ SCHEDULING_PROVIDER: "calcom" });
+  assert(calcomOut.status === 0, `Cal.com provider manifest branch should exit 0: ${calcomOut.combined}`);
+  assert(!calcomOut.combined.includes(SECRET_SENTINEL), `Cal.com provider manifest branch leaked a secret sentinel: ${calcomOut.combined}`);
+  const calcomBody = JSON.parse(calcomOut.stdout);
+  assert(calcomBody.activeSchedulingProvider === "calcom", `expected active Cal.com scheduling provider: ${calcomOut.stdout}`);
+  assert(calcomBody.activeSchedulingProofCommands.includes("npm run calcom:smoke"), `expected Cal.com smoke as active command: ${calcomOut.stdout}`);
+  assert(!calcomBody.activeSchedulingProofCommands.includes("USE_FAKE_CALENDAR=false npm run live-calendar:smoke"), `Cal.com mode should not require Google live booking as active proof: ${calcomOut.stdout}`);
+  const calcomItems = calcomBody.items as any[];
+  assert(calcomItems.some((item) => item.id === "calcom-live-booking" && item.schedulingMode === "active"), `expected Cal.com booking proof to be active: ${calcomOut.stdout}`);
+  assert(calcomItems.some((item) => item.id === "google-calendar-live-booking" && item.schedulingMode === "alternative"), `expected Google booking proof to be alternative in Cal.com mode: ${calcomOut.stdout}`);
 
   console.log("PROVIDER_PROOF_MANIFEST_SMOKE_OK");
   console.log(
