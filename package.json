@@ -22,6 +22,7 @@
     "supabase:postgres:smoke": "bash scripts/supabase-postgres-smoke.sh",
     "supabase:admin:smoke": "tsx src/supabase-admin-smoke.ts",
     "server:battletest": "tsx src/server-battletest.ts",
+    "server:calcom:battletest": "tsx src/server-calcom-battletest.ts",
     "voice:smoke": "tsx src/voice-agent-tool-smoke.ts",
     "voice:contract": "tsx src/elevenlabs-agent-contract.ts",
     "voice:contract:smoke": "tsx src/voice-agent-contract-smoke.ts",

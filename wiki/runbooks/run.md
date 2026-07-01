@@ -46,6 +46,7 @@ model-portable: true
 | Typecheck | `npm run typecheck` | safe | `tsc --noEmit` clean | — |
 | First-test smoke | `npm run first-test:smoke` | local-state | `FIRST_TEST_SMOKE_OK` | — (per README) |
 | Server battletest | `npm run server:battletest` | local-state | `SERVER_BATTLETEST_OK` | — (per README) |
+| Server Cal.com battletest | `npm run server:calcom:battletest` | local-state | `SERVER_CALCOM_BATTLETEST_OK`; starts real server against a local mock Cal.com API, no live provider calls | — |
 | Public demo API smoke | `npm run demo:api:smoke` | local-state | `DEMO_API_SMOKE_OK` | — |
 | Deployment handoff smoke | `npm run deployment:handoff:smoke` | safe | `DEPLOYMENT_HANDOFF_SMOKE_OK`; no-secret hosted handoff report shape | — |
 | Style guard | `npm run style:guard` | safe | Tilda voice/style check (python3) | — |

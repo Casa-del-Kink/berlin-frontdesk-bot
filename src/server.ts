@@ -24,6 +24,7 @@ import { alertOwner as sendOwnerAlert } from "./owner-alerts.js";
 import { normalizeVoicePostCallPayload } from "./voice-post-call.js";
 import { renderLandingPage } from "./landing.js";
 import { demoApiReadiness, publicDemoConfig, runDemoAvailability, runDemoBooking } from "./demo-api.js";
+import { schedulingProviderName } from "./scheduling.js";
 
 const cfg = loadClient();
 const app = express();
@@ -56,7 +57,9 @@ app.post("/api/demo/book-appointment", async (req, res) => {
     res.status(400).json({ ok: false, error: String(e?.message ?? e) });
   }
 });
-app.get("/health", (_req, res) => res.json({ ok: true, client: cfg.name, storeBackend: getStoreBackend().name, time: new Date().toISOString() }));
+app.get("/health", (_req, res) =>
+  res.json({ ok: true, client: cfg.name, storeBackend: getStoreBackend().name, schedulingProvider: schedulingProviderName(), time: new Date().toISOString() }),
+);
 app.get("/readiness/live-pilot", (req, res) => {
   if (!validateToolRequest(req)) return res.status(401).json({ error: "Unauthorized" });
   const readiness = validateDeploymentReadiness(cfg);
