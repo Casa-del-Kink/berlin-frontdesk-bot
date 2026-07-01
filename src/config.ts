@@ -93,6 +93,12 @@ export function validateLivePilotReadiness(cfg?: Client): LivePilotReadiness {
       detail: "TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_WHATSAPP_FROM are required for live WhatsApp and webhook validation.",
     },
     {
+      name: "reviewed follow-up send approval",
+      ok: process.env.ENABLE_REVIEWED_FOLLOWUP_SEND !== "true" || hasEnv("FOLLOWUP_SEND_REVIEWED_AT"),
+      severity: "blocker",
+      detail: "ENABLE_REVIEWED_FOLLOWUP_SEND may only be true after opt-in, provider setup, and operator review are approved; set FOLLOWUP_SEND_REVIEWED_AT to that approval timestamp.",
+    },
+    {
       name: "llm provider",
       ok: hasEnv("OPENROUTER_API_KEY"),
       severity: "blocker",

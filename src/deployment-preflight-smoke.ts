@@ -47,7 +47,16 @@ function main() {
   assert(body.ok === false, `expected ok=false: ${out.stdout}`);
   assert(body.blockerCount > 0, `expected blockers: ${out.stdout}`);
   assert(Array.isArray(body.checks) && Array.isArray(body.blockers) && Array.isArray(body.warnings), `expected machine-readable check arrays: ${out.stdout}`);
+  assert(body.checks.some((check: any) => check.name === "reviewed follow-up send approval" && check.ok === true), `reviewed follow-up sending should be safe by default: ${out.stdout}`);
   assertNoSecretLeak(out.combined);
+
+  out = run({ DEPLOYMENT_PREFLIGHT_JSON: "true", ALLOW_DEPLOYMENT_BLOCKERS: "true", ENABLE_REVIEWED_FOLLOWUP_SEND: "true" });
+  assert(out.status === 0, `unsafe follow-up review mode should still exit 0 with allow flag: ${out.combined}`);
+  body = parseJson(out.stdout);
+  assert(
+    body.blockers.some((check: any) => check.name === "reviewed follow-up send approval"),
+    `enabling reviewed follow-up sending without approval timestamp should be a blocker: ${out.stdout}`,
+  );
 
   out = run({ DEPLOYMENT_PREFLIGHT_JSON: "true", ALLOW_DEPLOYMENT_BLOCKERS: "true", SERVER_TOOL_TOKEN: SECRET });
   assert(out.status === 0, `review-only JSON preflight should exit 0: ${out.combined}`);

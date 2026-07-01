@@ -31,6 +31,14 @@ async function json(path: string, init: RequestInit = {}) {
   return { res, body };
 }
 
+function authJson(body?: unknown): RequestInit {
+  return {
+    method: "POST",
+    headers: { authorization: `Bearer ${TOKEN}`, "content-type": "application/json" },
+    body: JSON.stringify(body ?? {}),
+  };
+}
+
 async function waitForHealth() {
   const deadline = Date.now() + 15_000;
   let lastError = "not attempted";
@@ -127,6 +135,10 @@ async function main() {
       `readiness should flag missing public operator footer values: ${JSON.stringify(out.body)}`,
     );
     assert(
+      out.body.checks.some((check: any) => check.name === "reviewed follow-up send approval" && check.ok === true),
+      `readiness should keep reviewed follow-up sending disabled/safe by default: ${JSON.stringify(out.body)}`,
+    );
+    assert(
       out.body.checks.some((check: any) => check.name === "public contact email" && check.ok === false),
       `readiness should flag missing public contact email: ${JSON.stringify(out.body)}`,
     );
@@ -138,6 +150,25 @@ async function main() {
 
     out = await json("/metrics/today", { headers: { authorization: `Bearer ${TOKEN}` } });
     assert(out.res.ok, `authorized metrics should work during deployment smoke: ${out.res.status} ${JSON.stringify(out.body)}`);
+
+    out = await json("/operator/follow-up/send", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({}) });
+    assert(out.res.status === 401, `follow-up send without auth should be 401, got ${out.res.status}`);
+
+    out = await json("/operator/follow-up/send", authJson({ phone: "whatsapp:+491****2201", message: "Hallo Laura, dein Termin ist eingetragen.", reviewedBy: "operator" }));
+    assert(out.res.status === 400, `follow-up send should require opt-in confirmation: ${out.res.status} ${JSON.stringify(out.body)}`);
+
+    out = await json(
+      "/operator/follow-up/send",
+      authJson({ phone: "whatsapp:+491****2201", message: "Hallo Laura, dein Termin ist eingetragen.", reviewedBy: "operator", optInConfirmed: true }),
+    );
+    assert(out.res.ok, `follow-up dry-run should pass without provider sends: ${out.res.status} ${JSON.stringify(out.body)}`);
+    assert(out.body?.sent === false && out.body?.dryRun === true, `follow-up default should be dry-run: ${JSON.stringify(out.body)}`);
+
+    out = await json(
+      "/operator/follow-up/send",
+      authJson({ phone: "whatsapp:+491****2201", message: "Hallo Laura, dein Termin ist eingetragen.", reviewedBy: "operator", optInConfirmed: true, dryRun: false }),
+    );
+    assert(out.res.status === 409, `live follow-up send should fail closed until explicitly enabled: ${out.res.status} ${JSON.stringify(out.body)}`);
 
     console.log("DEPLOYMENT_SMOKE_OK");
     console.log(

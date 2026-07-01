@@ -39,6 +39,7 @@ function nextAction(check: DeploymentCheck): string {
   const actions: Record<string, string> = {
     "operator auth": "Set a long SERVER_TOOL_TOKEN in hosted secret storage before exposing operator endpoints.",
     "twilio credentials": "Configure Twilio account/API credentials and WhatsApp sender in secret storage.",
+    "reviewed follow-up send approval": "Keep ENABLE_REVIEWED_FOLLOWUP_SEND unset unless reviewed WhatsApp follow-up sending is approved, then set FOLLOWUP_SEND_REVIEWED_AT to the approval timestamp.",
     "llm provider": "Configure OPENROUTER_API_KEY in hosted secret storage.",
     "calendar provider": "Set USE_FAKE_CALENDAR=false and configure Google service-account calendar access.",
     "retention policy": "Set DATA_RETENTION_DAYS to the agreed first-pilot retention window and align it with the privacy notice.",

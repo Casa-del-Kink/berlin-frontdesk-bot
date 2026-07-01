@@ -41,6 +41,10 @@ DATA_RETENTION_DAYS=30
 # OWNER_ALERT_LOG_ONLY_ACCEPTED=true
 # Real client pilot only, after a successful protected alert test:
 # OWNER_ALERT_TESTED_AT=2026-06-30T10:15:00+02:00
+# Reviewed voice-to-WhatsApp follow-up sending stays disabled unless explicitly approved:
+# ENABLE_REVIEWED_FOLLOWUP_SEND=false
+# Set only when live follow-up sends are approved:
+# FOLLOWUP_SEND_REVIEWED_AT=2026-06-30T10:20:00+02:00
 ```
 
 For a real client pilot, configure `ownerWhatsapp` in the client YAML instead of relying on log-only alerts.
@@ -177,6 +181,8 @@ DEPLOYMENT_SMOKE_OK
 ```
 
 This starts the real server with fake provider fixtures, proves `/health` works, proves protected readiness returns `401` without bearer auth, proves unsafe readiness returns `409` with blocker details, proves protected metrics still work, and proves `REQUIRE_LIVE_PILOT_READINESS=true` refuses startup while blockers remain. It does not call paid/live providers.
+
+It also proves the operator-reviewed follow-up send path is safe by default: unauthenticated requests return `401`, missing opt-in returns `400`, approved dry-runs do not send provider traffic, and live sends return `409` unless `ENABLE_REVIEWED_FOLLOWUP_SEND=true` has been deliberately approved with `FOLLOWUP_SEND_REVIEWED_AT`.
 
 ## HTTP checks after deploy
 
