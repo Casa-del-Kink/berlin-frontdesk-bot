@@ -15,6 +15,7 @@ WhatsApp (Twilio)  ──>  src/server.ts  (webhook)
                           ├─ src/llm.ts      AI loop (OpenRouter) + tool use
                           ├─ src/tools.ts    check_availability / book_appointment / register_lead
                           ├─ src/calendar.ts Calendar provider seam (fake + Google)
+                          ├─ src/calcom.ts   Cal.com booking-layer spike client
                           ├─ src/slots.ts    free-slot computation (pure, tested)
                           ├─ src/store.ts    store backend seam (atomic JSON + Postgres)
                           ├─ src/prompt.ts   system prompt built from the YAML
@@ -65,6 +66,19 @@ clients/salon-demo.yaml  ← one business = one file. Adapt = copy and edit.
         people" add the **service account email** with "Make changes to events".
      5. Copy the **calendar ID** (calendar settings) into `clients/salon-demo.yaml`
         (`calendarId`).
+   - **Cal.com spike:** optional candidate booking layer. First run the credential-free client
+     contract check:
+     ```
+     npm run calcom:check
+     ```
+     Expected result: `CALCOM_PROVIDER_CHECK_OK`. To hit hosted Cal.com, set `CALCOM_API_KEY`,
+     `CALCOM_TEST_ATTENDEE_EMAIL`, and either `CALCOM_EVENT_TYPE_ID` or
+     `CALCOM_EVENT_TYPE_SLUG` plus `CALCOM_USERNAME`/`CALCOM_TEAM_SLUG`, then run:
+     ```
+     npm run calcom:smoke
+     ```
+     Expected result: `CALCOM_SMOKE_OK`. This creates, retrieves, and cancels a real test
+     booking unless `CALCOM_KEEP_SMOKE_BOOKING=true` is set.
 
 5. **Run**
    ```
@@ -106,6 +120,10 @@ clients/salon-demo.yaml  ← one business = one file. Adapt = copy and edit.
   still rejected by the double-booking guard.
 - Calendar access is behind a `CalendarProvider` seam with fake and Google implementations, so
   future provider swaps should stay isolated in `calendar.ts`.
+- Cal.com is available as a booking-layer spike client in `src/calcom.ts`. Treat it as a candidate
+  replacement for custom scheduling/booking logic, not as the Tilda conversation or compliance
+  brain. Keep Google Calendar as fallback/dev provider until the hosted Cal.com smoke and AVV/DPA
+  review are accepted for a pilot.
 - `ownerWhatsapp` empty → owner alerts print to the console (DRYRUN).
 - Data in `data/state.json` by default, written atomically behind a `StoreBackend` seam.
   Use `STORE_BACKEND=json` for local demos/tests. Use `STORE_BACKEND=postgres` plus `DATABASE_URL`

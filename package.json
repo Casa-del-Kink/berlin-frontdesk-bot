@@ -37,7 +37,9 @@
     "provider:proof:manifest:smoke": "tsx src/provider-proof-manifest-smoke.ts",
     "pilot:go-no-go": "tsx src/pilot-go-no-go.ts",
     "pilot:go-no-go:smoke": "tsx src/pilot-go-no-go-smoke.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "calcom:check": "tsx src/calcom-provider-check.ts",
+    "calcom:smoke": "tsx src/calcom-smoke.ts"
   },
   "dependencies": {
     "dotenv": "^16.4.5",
