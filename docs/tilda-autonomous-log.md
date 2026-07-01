@@ -350,3 +350,30 @@
   - Privacy export must still contain exactly one call outcome after retry.
 - Blocker: live Google Calendar, Supabase/Postgres, WhatsApp, and voice-provider smokes were not run in this no-credential loop.
 - Next chunk: add a hosted-demo provider-proof manifest that maps each live credential/env prerequisite to a safe smoke command and expected marker, without printing secrets.
+
+## 2026-07-01T05:00:34Z hourly build loop
+
+- Branch: `main`
+- HEAD before: `d7551ce`
+- HEAD after: this local commit (see `git rev-parse HEAD` after commit)
+- Chunk selected: hosted-demo provider-proof manifest that maps every live credential/provider prerequisite to safe commands, expected markers, cleanup proof, and approval boundaries without printing secrets.
+- Files changed:
+  - `src/provider-proof-manifest.ts`
+  - `src/provider-proof-manifest-smoke.ts`
+  - `package.json`
+  - `wiki/runbooks/run.md`
+  - `docs/tilda-autonomous-log.md`
+- Commands run:
+  - `npm run provider:proof:manifest` -> `PROVIDER_PROOF_MANIFEST_OK`, 10 proof items, 8 approval-required checks, 2 provider-traffic checks
+  - `npm run provider:proof:manifest:smoke` -> `PROVIDER_PROOF_MANIFEST_SMOKE_OK`
+  - `npm run typecheck` -> pass
+  - `npm run style:guard` -> `STYLE_GUARD_OK`
+  - `npm run secrets:scan` -> `SECRETS_SCAN_OK`
+  - `git diff --check` -> pass
+- Verification added:
+  - Manifest is report-only and writes an ignored operator handoff under `tmp/tilda-ops-snapshot/`.
+  - Live proof items cover Google Calendar read/full booking, Supabase Postgres, Supabase admin REST, Twilio webhook signature, reviewed WhatsApp follow-up sending, ElevenLabs voice contract, owner alert route, LLM provider, and deployment preflight.
+  - Every item records owner, required env names only, command, expected marker, side-effect class, approval requirement, cleanup proof, and blocker if missing.
+  - Smoke injects secret sentinels and asserts the manifest does not print them.
+- Blocker: live Google Calendar, Supabase/Postgres, WhatsApp, voice-provider, and LLM smokes were not run. This loop deliberately produced the no-secret proof map before any approved live-provider checks.
+- Next chunk: add a hosted env handoff checklist for Hetzner/Render/Fly-style deployment targets, or run specific live provider smokes only when approved credentials and fixture cleanup scope are configured.
