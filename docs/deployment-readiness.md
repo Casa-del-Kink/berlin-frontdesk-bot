@@ -37,6 +37,12 @@ PORT=3000
 CLIENT_FILE=clients/salon-demo.yaml
 SERVER_TOOL_TOKEN=<long random bearer token>
 DATA_RETENTION_DAYS=30
+# Request throttles for public demos and provider/operator endpoints. Start conservative for hosted demos;
+# adjust after reviewing actual traffic and provider spend caps.
+PUBLIC_DEMO_RATE_LIMIT_MAX=120
+PUBLIC_DEMO_RATE_LIMIT_WINDOW_MS=60000
+SERVER_TOOL_RATE_LIMIT_MAX=240
+SERVER_TOOL_RATE_LIMIT_WINDOW_MS=60000
 # Internal hosted demo only, when owner alerts are intentionally console/log-only:
 # OWNER_ALERT_LOG_ONLY_ACCEPTED=true
 # Real client pilot only, after a successful protected alert test. Must be a valid ISO timestamp:
@@ -48,6 +54,29 @@ DATA_RETENTION_DAYS=30
 ```
 
 For a real client pilot, configure `ownerWhatsapp` in the client YAML instead of relying on log-only alerts.
+
+## Request throttles / spend guard
+
+The server now applies in-process request throttles before costly or operator-sensitive routes:
+
+- `/api/demo/*` uses `PUBLIC_DEMO_RATE_LIMIT_MAX` per `PUBLIC_DEMO_RATE_LIMIT_WINDOW_MS` by caller IP.
+- `/tools/*`, `/webhook/voice/*`, `/operator/*`, `/metrics/*`, and `/privacy/*` use `SERVER_TOOL_RATE_LIMIT_MAX` per `SERVER_TOOL_RATE_LIMIT_WINDOW_MS` by bearer token plus caller IP.
+- `/health` and the public landing page are not throttled, so uptime checks stay clean.
+- `429` responses include `Retry-After`, `x-ratelimit-*` headers, and JSON body `{ ok: false, error: "Rate limit exceeded", rateLimit, retryAfterSeconds }`.
+
+This is a first hosted-demo guardrail, not a replacement for provider-side hard spend caps. For multi-worker hosting, move rate-limit state to Redis/Postgres or keep one worker until the pilot traffic pattern is known.
+
+Regression-test locally:
+
+```bash
+npm run rate-limit:smoke
+```
+
+Expected marker:
+
+```text
+RATE_LIMIT_SMOKE_OK
+```
 
 Calendar:
 

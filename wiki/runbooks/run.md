@@ -53,6 +53,7 @@ model-portable: true
 | Cal.com live-smoke contract | `npm run calcom:smoke:contract` | safe | `CALCOM_SMOKE_CONTRACT_OK`; proves the live smoke fails closed without approval and does not print secret sentinels | — |
 | Deployment handoff smoke | `npm run deployment:handoff:smoke` | safe | `DEPLOYMENT_HANDOFF_SMOKE_OK`; no-secret hosted handoff report shape | — |
 | Hosting handoff smoke | `npm run hosting:handoff:smoke` | safe | `HOSTING_HANDOFF_SMOKE_OK`; no-secret hosting target checklist | — |
+| Rate-limit smoke | `npm run rate-limit:smoke` | local-state | `RATE_LIMIT_SMOKE_OK`; starts real server with fake providers and proves public demo + operator/tool throttles return 429 without affecting health | — |
 | Twilio credential smoke | `npm run twilio:credentials:smoke` | safe | `TWILIO_CREDENTIAL_SMOKE_OK`; verifies API-key-over-Auth-Token outbound REST selection without provider calls | — |
 | LLM provider smoke contract | `npm run llm:provider:smoke:contract` | safe | `LLM_PROVIDER_SMOKE_CONTRACT_OK`; verifies live OpenRouter smoke fails closed without credentials/approval and prints no secret values | — |
 | LLM provider smoke | `LLM_PROVIDER_SMOKE_APPROVED=true npm run llm:provider:smoke` | side-effecting | `LLM_PROVIDER_SMOKE_OK`; needs `OPENROUTER_API_KEY`; sends only a fixed no-customer German salon connectivity fixture to OpenRouter | — |

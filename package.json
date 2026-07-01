@@ -28,6 +28,7 @@
     "voice:contract": "tsx src/elevenlabs-agent-contract.ts",
     "voice:contract:smoke": "tsx src/voice-agent-contract-smoke.ts",
     "voice:post-call:smoke": "tsx src/voice-post-call-smoke.ts",
+    "rate-limit:smoke": "tsx src/rate-limit-smoke.ts",
     "twilio:credentials:smoke": "tsx src/twilio-credential-smoke.ts",
     "llm:provider:smoke": "tsx src/llm-provider-smoke.ts",
     "llm:provider:smoke:contract": "tsx src/llm-provider-smoke-contract.ts",

@@ -25,12 +25,27 @@ import { normalizeVoicePostCallPayload } from "./voice-post-call.js";
 import { renderLandingPage } from "./landing.js";
 import { demoApiReadiness, publicDemoConfig, runDemoAvailability, runDemoBooking } from "./demo-api.js";
 import { schedulingProviderName } from "./scheduling.js";
+import { createRateLimiter, envInt } from "./rate-limit.js";
 
 const cfg = loadClient();
 const app = express();
 app.set("trust proxy", true);
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
+
+const publicDemoRateLimit = createRateLimiter({
+  name: "public-demo",
+  windowMs: envInt("PUBLIC_DEMO_RATE_LIMIT_WINDOW_MS", 60_000),
+  maxRequests: envInt("PUBLIC_DEMO_RATE_LIMIT_MAX", 120),
+  keyPrefix: "public-demo",
+});
+const toolRateLimit = createRateLimiter({
+  name: "server-tools",
+  windowMs: envInt("SERVER_TOOL_RATE_LIMIT_WINDOW_MS", 60_000),
+  maxRequests: envInt("SERVER_TOOL_RATE_LIMIT_MAX", 240),
+  keyPrefix: "server-tools",
+  keyFromRequest: (req) => `${req.get("authorization") || "no-auth"}:${req.ip || req.socket.remoteAddress || "unknown"}`,
+});
 
 for (const warning of validateRuntimeEnv()) console.warn(`[config] ${warning}`);
 if (process.env.REQUIRE_LIVE_PILOT_READINESS === "true") assertDeploymentReadiness(cfg);
@@ -62,6 +77,7 @@ function applyDemoCors(req: express.Request, res: express.Response, next: expres
 
 app.use(applyDemoCors);
 app.options("/api/demo/*", (_req, res) => res.status(204).send());
+app.use("/api/demo", publicDemoRateLimit);
 
 app.get("/", (_req, res) => res.type("html").send(renderLandingPage()));
 app.get("/api/demo/config", (_req, res) => res.json(publicDemoConfig(cfg)));
@@ -159,6 +175,8 @@ function requireReviewedFollowUpBody(req: express.Request) {
 async function alertOwner(message: string) {
   return sendOwnerAlert(cfg, message);
 }
+
+app.use(["/tools", "/metrics", "/operator", "/webhook/voice", "/privacy"], toolRateLimit);
 
 // Shared "one brain" endpoint for WhatsApp, ElevenLabs server tools, or internal tests.
 app.post("/tools/:name", async (req, res) => {
