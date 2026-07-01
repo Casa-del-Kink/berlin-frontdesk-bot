@@ -75,6 +75,8 @@ COMPLIANCE_DPA_REVIEWED=true
 
 Only set `COMPLIANCE_DPA_REVIEWED=true` after the actual AVV/DPA/subprocessor review is complete. Until then, the readiness endpoint should show a warning.
 
+**Health-adjacent clients (dental/medical, §203 StGB scope):** if the active client YAML sets `dataSensitivity: health`, readiness adds a hard **blocker** — `COMPLIANCE_SUBPROCESSOR_REVIEW_COMPLETE=true` — stricter than the general DPA flag above. This must only be set after a full subprocessor-by-subprocessor legal/vendor review (hosting platform, Twilio, OpenRouter, ElevenLabs, Supabase, log storage). See `wiki/decisions/2026-07-01-subprocessor-review-triggers.md` for exactly when this review must be (re-)run — some triggers there can't be caught by an automated gate and need a human to notice them.
+
 ## Secrets storage approach
 
 - Store secrets in the host/deployment platform secret manager.

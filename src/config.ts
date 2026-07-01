@@ -23,6 +23,12 @@ export interface Client {
   services: Service[];
   faq: { q: string; a: string }[];
   tone: string;
+  /**
+   * "health" for dental/medical/health-data-adjacent clients (§203 StGB scope) —
+   * unset/"standard" for beauty/aesthetics. Drives the subprocessor-review gate
+   * below. See wiki/decisions/2026-07-01-subprocessor-review-triggers.md.
+   */
+  dataSensitivity?: "standard" | "health";
 }
 
 export function loadClient(): Client {
@@ -140,6 +146,13 @@ export function validateLivePilotReadiness(cfg?: Client): LivePilotReadiness {
       ok: process.env.COMPLIANCE_DPA_REVIEWED === "true",
       severity: "warning",
       detail: "Set COMPLIANCE_DPA_REVIEWED=true only after AVV/DPA/subprocessor review for hosting, messaging, LLM, calendar, and voice vendors.",
+    },
+    {
+      name: "subprocessor-by-subprocessor review for health-adjacent data",
+      ok: cfg?.dataSensitivity !== "health" || process.env.COMPLIANCE_SUBPROCESSOR_REVIEW_COMPLETE === "true",
+      severity: "blocker",
+      detail:
+        "Client YAML sets dataSensitivity: health (dental/medical/§203 StGB scope) — a full subprocessor-by-subprocessor legal/vendor review (hosting platform, Twilio, OpenRouter, ElevenLabs, Supabase, log storage) is required before go-live, separate from and stricter than the general AVV/DPA review above. Set COMPLIANCE_SUBPROCESSOR_REVIEW_COMPLETE=true only after that review is actually done. See wiki/decisions/2026-07-01-subprocessor-review-triggers.md.",
     },
   ];
 
