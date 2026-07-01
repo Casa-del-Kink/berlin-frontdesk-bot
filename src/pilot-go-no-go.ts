@@ -193,6 +193,7 @@ function operatorProofItems(): GoNoGoItem[] {
 
 function buildReport() {
   const client = loadClient();
+  const activeSchedulingProvider = schedulingProviderEnv();
   const deployment = validateDeploymentReadiness(client);
   const voice = buildVoiceAgentContractReport();
   const deploymentItems: GoNoGoItem[] = [...deployment.blockers, ...deployment.warnings].map((check) => ({
@@ -218,6 +219,13 @@ function buildReport() {
       sideEffect: "none",
     }));
   const proofItems = [...providerProofItems(), ...operatorProofItems()];
+  const activeSchedulingProofCommands = proofItems
+    .filter((item) => {
+      if (item.lane !== "provider-proof") return false;
+      const name = item.name.toLowerCase();
+      return activeSchedulingProvider === "calcom" ? name.includes("cal.com") : name.includes("google calendar");
+    })
+    .map((item) => item.command || item.next);
   const blockers = [...deploymentItems, ...voiceItems].filter((item) => item.severity === "blocker");
   const warnings = [...deploymentItems, ...voiceItems].filter((item) => item.severity === "warning");
   const items = [...deploymentItems, ...voiceItems, ...proofItems];
@@ -232,6 +240,8 @@ function buildReport() {
     proofCount: proofItems.length,
     deploymentMarker: deployment.ok ? "DEPLOYMENT_READY" : "DEPLOYMENT_BLOCKED",
     voiceContractMarker: voice.marker,
+    activeSchedulingProvider,
+    activeSchedulingProofCommands,
     noSecretsPrinted: true,
     noLiveProviderCalls: true,
     outputPath,
@@ -270,6 +280,8 @@ function toMarkdown(report: ReturnType<typeof buildReport>) {
     `Proof items before live pilot: ${report.proofCount}`,
     `Deployment marker: ${report.deploymentMarker}`,
     `Voice contract marker: \`${report.voiceContractMarker}\``,
+    `Active scheduling provider: ${report.activeSchedulingProvider}`,
+    `Active scheduling proof commands: ${report.activeSchedulingProofCommands.map((command) => `\`${command}\``).join(", ")}`,
     `No secrets printed: ${String(report.noSecretsPrinted)}`,
     `No live provider calls made: ${String(report.noLiveProviderCalls)}`,
     "",

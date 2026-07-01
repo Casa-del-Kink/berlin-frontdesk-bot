@@ -340,7 +340,7 @@ Expected marker while blockers or proof items remain:
 PILOT_GO_NO_GO_NO_GO
 ```
 
-The command writes `tmp/tilda-ops-snapshot/pilot-go-no-go.md`. It is report-only and does not call Google Calendar, Supabase/Postgres, WhatsApp, voice providers, or LLM providers. Use it as the first operator handoff before a hosted demo or first-pilot readiness review.
+The command writes `tmp/tilda-ops-snapshot/pilot-go-no-go.md`. It is report-only and does not call Google Calendar, Cal.com, Supabase/Postgres, WhatsApp, voice providers, or LLM providers. Use it as the first operator handoff before a hosted demo or first-pilot readiness review. It prints `activeSchedulingProvider` and `activeSchedulingProofCommands` so the handoff points Michael/Roxu at the selected Google Calendar or Cal.com live proof command without mixing both paths.
 
 Machine-readable mode for scheduled checks:
 
