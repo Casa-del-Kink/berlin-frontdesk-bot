@@ -66,6 +66,7 @@ async function main() {
       STATE_FILE,
       OWNER_ALERT_LOG_ONLY_ACCEPTED: "true",
       SERVER_TOOL_TOKEN: "demo-api-smoke-server-tool-token",
+      DEMO_PUBLIC_ALLOWED_ORIGINS: "https://demo.calltilda.com,http://localhost:5173",
       SKIP_TWILIO_SIGNATURE_VALIDATION: "false",
     },
     stdio: ["ignore", "pipe", "pipe"],
@@ -79,13 +80,24 @@ async function main() {
   try {
     await waitForHealth();
 
-    let out = await json("/api/demo/config");
+    let out = await json("/api/demo/config", { headers: { origin: "https://demo.calltilda.com" } });
     assert(out.res.ok, `demo config failed: ${out.res.status} ${JSON.stringify(out.body)}`);
+    assert(out.res.headers.get("access-control-allow-origin") === "https://demo.calltilda.com", "allowed demo origin should receive CORS header");
     assert(out.body?.brand?.product === "CallTilda", `demo config should expose CallTilda brand: ${JSON.stringify(out.body)}`);
     assert(out.body?.brand?.category?.includes("appointment businesses"), `demo config should stay business-agnostic: ${JSON.stringify(out.body)}`);
     assert(out.body?.brand?.firstWedge?.includes("Berlin salons and barbers"), `demo config should state narrow wedge separately: ${JSON.stringify(out.body)}`);
     assert(out.body?.scheduling?.publicMode === "fake", `demo config should report fake public mode: ${JSON.stringify(out.body)}`);
     assert(out.body?.scheduling?.canBook === true, `fake demo should allow public demo bookings: ${JSON.stringify(out.body)}`);
+
+    out = await json("/api/demo/readiness", {
+      method: "OPTIONS",
+      headers: { origin: "https://demo.calltilda.com", "access-control-request-method": "POST", "access-control-request-headers": "content-type" },
+    });
+    assert(out.res.status === 204, `allowed demo preflight should be 204: ${out.res.status} ${JSON.stringify(out.body)}`);
+    assert(out.res.headers.get("access-control-allow-origin") === "https://demo.calltilda.com", "allowed preflight should echo origin");
+
+    out = await json("/api/demo/config", { headers: { origin: "https://evil.example" } });
+    assert(out.res.status === 403, `disallowed demo origin should be 403: ${out.res.status} ${JSON.stringify(out.body)}`);
 
     out = await json("/api/demo/readiness");
     assert(out.res.ok, `demo readiness should be OK in fake smoke: ${out.res.status} ${JSON.stringify(out.body)}`);

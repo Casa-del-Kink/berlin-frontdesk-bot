@@ -35,6 +35,34 @@ app.use(express.json());
 for (const warning of validateRuntimeEnv()) console.warn(`[config] ${warning}`);
 if (process.env.REQUIRE_LIVE_PILOT_READINESS === "true") assertDeploymentReadiness(cfg);
 
+function demoAllowedOrigins() {
+  const configured = String(process.env.DEMO_PUBLIC_ALLOWED_ORIGINS || "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+  return configured.length
+    ? configured
+    : ["https://demo.calltilda.com", "https://calltilda.com", "https://www.calltilda.com", "http://localhost:3000", "http://localhost:5173"];
+}
+
+function applyDemoCors(req: express.Request, res: express.Response, next: express.NextFunction) {
+  if (!req.path.startsWith("/api/demo/")) return next();
+  const origin = req.get("origin");
+  res.setHeader("vary", "Origin");
+  res.setHeader("access-control-allow-methods", "GET,POST,OPTIONS");
+  res.setHeader("access-control-allow-headers", "content-type");
+  res.setHeader("access-control-max-age", "600");
+  if (!origin) return next();
+  if (!demoAllowedOrigins().includes(origin)) {
+    return res.status(403).json({ ok: false, error: "Demo origin not allowed" });
+  }
+  res.setHeader("access-control-allow-origin", origin);
+  return next();
+}
+
+app.use(applyDemoCors);
+app.options("/api/demo/*", (_req, res) => res.status(204).send());
+
 app.get("/", (_req, res) => res.type("html").send(renderLandingPage()));
 app.get("/api/demo/config", (_req, res) => res.json(publicDemoConfig(cfg)));
 app.get("/api/demo/readiness", (_req, res) => {

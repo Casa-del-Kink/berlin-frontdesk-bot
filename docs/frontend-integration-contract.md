@@ -267,8 +267,15 @@ The frontend must not call these directly from a browser unless a server-side pr
 
 ## CORS / hosting note
 
-If the frontend is same-origin with the API, no CORS is needed.
-If `demo.calltilda.com` calls `api.calltilda.com` directly from the browser, add a narrow CORS allowlist before deployment. Do not use `Access-Control-Allow-Origin: *` on protected endpoints.
+`/api/demo/*` has a narrow browser allowlist. Configure it on the backend with:
+
+```text
+DEMO_PUBLIC_ALLOWED_ORIGINS=https://demo.calltilda.com,https://calltilda.com,https://www.calltilda.com
+```
+
+Local frontend origins can be added temporarily, for example `http://localhost:5173`. Do not use `Access-Control-Allow-Origin: *`, and do not expose protected `/tools/*`, `/webhook/*`, `/operator/*`, `/privacy/*`, or `/metrics/*` endpoints to browser CORS.
+
+If the frontend is same-origin with the API, the same allowlist still works; same-origin calls normally do not send an `Origin` header.
 
 ## Local verification
 
