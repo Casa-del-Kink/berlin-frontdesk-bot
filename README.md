@@ -5,7 +5,7 @@ a potential customer calls or messages while the owner is busy, the bot replies 
 qualifies the request, checks real availability, locks in the appointment, alerts the owner,
 and reports estimated recovered revenue. German/English is auto-detected.
 
-**Stack:** Node + TypeScript · WhatsApp via Twilio (sandbox) · Claude via OpenRouter · Google Calendar.
+**Stack:** Node + TypeScript · WhatsApp via Twilio · Claude via OpenRouter · dual-track scheduling via Google Calendar or hosted Cal.com.
 
 ## Architecture (one file per piece, swappable)
 
@@ -14,8 +14,9 @@ WhatsApp (Twilio)  ──>  src/server.ts  (webhook)
                           │
                           ├─ src/llm.ts      AI loop (OpenRouter) + tool use
                           ├─ src/tools.ts    check_availability / book_appointment / register_lead
-                          ├─ src/calendar.ts Calendar provider seam (fake + Google)
-                          ├─ src/calcom.ts   Cal.com booking-layer spike client
+                          ├─ src/scheduling.ts Dual-track booking provider seam (Google + Cal.com)
+                          ├─ src/calendar.ts   Calendar provider seam (fake + Google)
+                          ├─ src/calcom.ts     Hosted Cal.com API v2 client
                           ├─ src/slots.ts    free-slot computation (pure, tested)
                           ├─ src/store.ts    store backend seam (atomic JSON + Postgres)
                           ├─ src/prompt.ts   system prompt built from the YAML
@@ -58,6 +59,9 @@ clients/salon-demo.yaml  ← one business = one file. Adapt = copy and edit.
    - **Twilio sandbox:** Console → Messaging → Try it out → WhatsApp sandbox.
      Copy SID and Auth Token. From your phone, join the sandbox by sending the
      "join …" code to the number Twilio shows you.
+   - **Scheduling provider:** choose the dev/demo booking layer with `SCHEDULING_PROVIDER`:
+     - `SCHEDULING_PROVIDER=google` means Tilda computes slots and writes events directly to the configured Google Calendar.
+     - `SCHEDULING_PROVIDER=calcom` means Tilda calls hosted Cal.com for slots/bookings, and Cal.com should sync to the connected salon/demo Google Calendar.
    - **Google Calendar:**
      1. Google Cloud Console → create a project → enable "Google Calendar API".
      2. Create a **Service Account** and a **JSON key**.
@@ -70,8 +74,11 @@ clients/salon-demo.yaml  ← one business = one file. Adapt = copy and edit.
      contract check:
      ```
      npm run calcom:check
+     npm run scheduling:provider:check
      ```
-     Expected result: `CALCOM_PROVIDER_CHECK_OK`. To hit hosted Cal.com, set `CALCOM_API_KEY`,
+     Expected results: `CALCOM_PROVIDER_CHECK_OK` for the raw Cal.com client and
+     `SCHEDULING_PROVIDER_CHECK_OK` for the end-to-end Tilda tool seam using a mocked Cal.com API.
+     To hit hosted Cal.com, set `CALCOM_API_KEY`,
      `CALCOM_TEST_ATTENDEE_EMAIL`, and either `CALCOM_EVENT_TYPE_ID` or
      `CALCOM_EVENT_TYPE_SLUG` plus `CALCOM_USERNAME`/`CALCOM_TEAM_SLUG`, then run:
      ```
@@ -118,12 +125,14 @@ clients/salon-demo.yaml  ← one business = one file. Adapt = copy and edit.
 - `book_appointment` re-checks the requested interval inside an in-process booking lock before
   creating the event. Same customer/service/start retries are idempotent; different customers are
   still rejected by the double-booking guard.
-- Calendar access is behind a `CalendarProvider` seam with fake and Google implementations, so
-  future provider swaps should stay isolated in `calendar.ts`.
-- Cal.com is available as a booking-layer spike client in `src/calcom.ts`. Treat it as a candidate
-  replacement for custom scheduling/booking logic, not as the Tilda conversation or compliance
-  brain. Keep Google Calendar as fallback/dev provider until the hosted Cal.com smoke and AVV/DPA
-  review are accepted for a pilot.
+- `SCHEDULING_PROVIDER=google` keeps the original Google Calendar path: Tilda computes availability,
+  applies its simple slot rules, and writes an event into `calendarId`.
+- `SCHEDULING_PROVIDER=calcom` uses hosted Cal.com as the booking engine: Tilda fetches Cal.com slots,
+  creates the Cal.com booking, stores Tilda proof/metrics locally, and relies on Cal.com's connected
+  Google Calendar sync for the owner calendar. Configure one global event type with `CALCOM_EVENT_TYPE_ID`
+  or map service-specific event types in the client YAML `calcom.services` block.
+- Calendar access remains behind a `CalendarProvider` seam with fake and Google implementations, so
+  lower-level Google/fake calendar changes stay isolated in `calendar.ts`.
 - `ownerWhatsapp` empty → owner alerts print to the console (DRYRUN).
 - Data in `data/state.json` by default, written atomically behind a `StoreBackend` seam.
   Use `STORE_BACKEND=json` for local demos/tests. Use `STORE_BACKEND=postgres` plus `DATABASE_URL`

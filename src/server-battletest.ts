@@ -139,8 +139,8 @@ async function main() {
     assert(out.body?.ok === false, `readiness body should be not ok: ${JSON.stringify(out.body)}`);
     assert(Array.isArray(out.body?.blockers) && out.body.blockers.length > 0, `readiness should list blockers: ${JSON.stringify(out.body)}`);
     assert(
-      Array.isArray(out.body?.checks) && out.body.checks.some((check: any) => check.name === "calendar provider" && check.ok === false),
-      `readiness should flag calendar provider: ${JSON.stringify(out.body)}`,
+      Array.isArray(out.body?.checks) && out.body.checks.some((check: any) => check.name === "scheduling provider" && check.ok === false),
+      `readiness should flag scheduling provider: ${JSON.stringify(out.body)}`,
     );
     assert(
       out.body.checks.some((check: any) => check.name === "fake calendar disabled" && check.ok === false),

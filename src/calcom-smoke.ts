@@ -12,6 +12,7 @@ function keepSmokeBooking() {
 
 async function main() {
   const cfg = calcomConfigFromEnv();
+  assert(cfg.attendeeEmail, "Missing CALCOM_TEST_ATTENDEE_EMAIL. The live Cal.com smoke needs a real attendee email for the test booking.");
   const client = new CalcomClient({ apiKey: cfg.apiKey, baseUrl: cfg.baseUrl });
   const now = DateTime.now().setZone(cfg.timeZone);
   const days = process.env.CALCOM_TEST_DAYS ? Number(process.env.CALCOM_TEST_DAYS) : 14;
@@ -49,7 +50,7 @@ async function main() {
       organizationSlug: cfg.organizationSlug,
       startISO: slot.start,
       attendeeName: cfg.attendeeName,
-      attendeeEmail: cfg.attendeeEmail,
+      attendeeEmail: cfg.attendeeEmail!,
       attendeePhoneNumber: cfg.attendeePhoneNumber,
       attendeeTimeZone: cfg.timeZone,
       attendeeLanguage: "de",

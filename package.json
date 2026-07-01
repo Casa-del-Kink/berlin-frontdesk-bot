@@ -39,6 +39,7 @@
     "pilot:go-no-go:smoke": "tsx src/pilot-go-no-go-smoke.ts",
     "typecheck": "tsc --noEmit",
     "calcom:check": "tsx src/calcom-provider-check.ts",
+    "scheduling:provider:check": "tsx src/scheduling-provider-check.ts",
     "calcom:smoke": "tsx src/calcom-smoke.ts"
   },
   "dependencies": {

@@ -8,11 +8,24 @@ export interface Service {
   price: string;
 }
 
+export interface CalcomEventTypeSelector {
+  eventTypeId?: number;
+  eventTypeSlug?: string;
+  username?: string;
+  teamSlug?: string;
+  organizationSlug?: string;
+  durationMin?: number;
+}
+
 export interface Client {
   name: string;
   timezone: string;
   language: string;
   calendarId: string;
+  calcom?: {
+    defaultEventType?: CalcomEventTypeSelector;
+    services?: Record<string, CalcomEventTypeSelector>;
+  };
   ownerWhatsapp: string;
   bookingFallbackUrl?: string;
   consentText?: string;
@@ -66,6 +79,11 @@ function positiveNumberEnv(name: string) {
   return Number.isFinite(value) && value > 0;
 }
 
+function schedulingProviderEnv() {
+  const raw = (process.env.SCHEDULING_PROVIDER || process.env.BOOKING_PROVIDER || "google").trim().toLowerCase();
+  return raw === "calcom" || raw === "cal.com" ? "calcom" : "google";
+}
+
 export function hasExplicitAiDisclosure(text?: string) {
   const value = text?.toLowerCase() ?? "";
   return /\bai\b/.test(value) || /\bki\b/.test(value);
@@ -105,10 +123,16 @@ export function validateLivePilotReadiness(cfg?: Client): LivePilotReadiness {
       detail: "OPENROUTER_API_KEY is required before real customer conversations.",
     },
     {
-      name: "calendar provider",
-      ok: hasEnv("GOOGLE_SA_JSON") && process.env.USE_FAKE_CALENDAR !== "true",
+      name: "scheduling provider",
+      ok:
+        schedulingProviderEnv() === "calcom"
+          ? hasEnv("CALCOM_API_KEY") && (hasEnv("CALCOM_EVENT_TYPE_ID") || hasEnv("CALCOM_EVENT_TYPE_SLUG"))
+          : hasEnv("GOOGLE_SA_JSON") && process.env.USE_FAKE_CALENDAR !== "true",
       severity: "blocker",
-      detail: "GOOGLE_SA_JSON must be set and USE_FAKE_CALENDAR must not be true for live booking.",
+      detail:
+        schedulingProviderEnv() === "calcom"
+          ? "SCHEDULING_PROVIDER=calcom requires CALCOM_API_KEY plus CALCOM_EVENT_TYPE_ID or CALCOM_EVENT_TYPE_SLUG; Cal.com must sync to the salon/demo Google Calendar."
+          : "SCHEDULING_PROVIDER=google requires GOOGLE_SA_JSON and USE_FAKE_CALENDAR must not be true for live booking.",
     },
     {
       name: "retention policy",

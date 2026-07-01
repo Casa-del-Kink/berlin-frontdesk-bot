@@ -180,7 +180,7 @@ export function calcomConfigFromEnv() {
     username: process.env.CALCOM_USERNAME,
     teamSlug: process.env.CALCOM_TEAM_SLUG,
     organizationSlug: process.env.CALCOM_ORGANIZATION_SLUG,
-    attendeeEmail: requiredEnv("CALCOM_TEST_ATTENDEE_EMAIL"),
+    attendeeEmail: process.env.CALCOM_TEST_ATTENDEE_EMAIL,
     attendeeName: process.env.CALCOM_TEST_ATTENDEE_NAME || "Tilda Cal.com Smoke",
     attendeePhoneNumber: process.env.CALCOM_TEST_ATTENDEE_PHONE,
     timeZone: process.env.CALCOM_TIME_ZONE || "Europe/Berlin",

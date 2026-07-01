@@ -6,7 +6,24 @@ timezone: "Europe/Berlin"
 language: "de"
 
 # Google Calendar ID to use (create a test calendar and share it with the Service Account).
+# In dual-track mode this remains the Google-provider target and the calendar Cal.com should sync into.
 calendarId: "ec639255e6fd2473e4ea2e1af60b996dab2f5df5fa5422047fff337ccc523938@group.calendar.google.com"
+
+# Optional hosted Cal.com selectors for SCHEDULING_PROVIDER=calcom.
+# Prefer mapping each service to a Cal.com event type once the demo account is configured.
+# If this block is omitted, the provider falls back to CALCOM_EVENT_TYPE_ID or
+# CALCOM_EVENT_TYPE_SLUG + CALCOM_USERNAME/CALCOM_TEAM_SLUG from .env.
+# calcom:
+#   defaultEventType:
+#     eventTypeId: 123456
+#     durationMin: 60
+#   services:
+#     Damenhaarschnitt:
+#       eventTypeId: 123456
+#       durationMin: 60
+#     Herrenhaarschnitt:
+#       eventTypeId: 123457
+#       durationMin: 30
 
 # Owner's WhatsApp for alerts and the daily summary. Empty = no send (log only).
 # On the Twilio sandbox the owner must have joined the sandbox first.
