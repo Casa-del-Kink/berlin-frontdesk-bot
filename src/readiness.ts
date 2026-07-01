@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs";
 import { loadClient, validateLivePilotReadiness, type Client, type ReadinessGate } from "./config.js";
+import { hasOperatorPlaceholders, landingOperatorFromEnv } from "./landing.js";
 
 export interface DeploymentCheck {
   name: string;
@@ -39,6 +40,7 @@ function fromReadinessGate(gate: ReadinessGate): DeploymentCheck {
 
 export function deploymentChecks(cfg: Client = loadClient()): DeploymentCheck[] {
   const readiness = validateLivePilotReadiness(cfg).gates.map(fromReadinessGate);
+  const landingOperator = landingOperatorFromEnv();
   return [
     ...readiness,
     checkFile("clients/salon-demo.yaml"),
@@ -79,6 +81,24 @@ export function deploymentChecks(cfg: Client = loadClient()): DeploymentCheck[] 
       ok: process.env.NODE_ENV === "production",
       severity: "warning",
       detail: "NODE_ENV=production should be set in the hosted runtime.",
+    },
+    {
+      name: "public website operator footer",
+      ok: !hasOperatorPlaceholders(landingOperator),
+      severity: "blocker",
+      detail: "TILDA_OPERATOR_LEGAL_NAME, TILDA_PUBLIC_CONTACT_EMAIL, and TILDA_PRIVACY_EMAIL must replace placeholders before Twilio/provider review.",
+    },
+    {
+      name: "public contact email",
+      ok: /@/.test(landingOperator.contactEmail),
+      severity: "blocker",
+      detail: "TILDA_PUBLIC_CONTACT_EMAIL must be a public contact email for the landing page footer and contact button.",
+    },
+    {
+      name: "privacy contact email",
+      ok: /@/.test(landingOperator.privacyEmail),
+      severity: "blocker",
+      detail: "TILDA_PRIVACY_EMAIL must be a privacy/admin email shown on the public landing page.",
     },
     {
       name: "public webhook https",

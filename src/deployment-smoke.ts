@@ -122,6 +122,18 @@ async function main() {
       out.body.checks.some((check: any) => check.name === "store backend postgres" && check.ok === false),
       `readiness should flag JSON store: ${JSON.stringify(out.body)}`,
     );
+    assert(
+      out.body.checks.some((check: any) => check.name === "public website operator footer" && check.ok === false),
+      `readiness should flag missing public operator footer values: ${JSON.stringify(out.body)}`,
+    );
+    assert(
+      out.body.checks.some((check: any) => check.name === "public contact email" && check.ok === false),
+      `readiness should flag missing public contact email: ${JSON.stringify(out.body)}`,
+    );
+    assert(
+      out.body.checks.some((check: any) => check.name === "privacy contact email" && check.ok === false),
+      `readiness should flag missing privacy contact email: ${JSON.stringify(out.body)}`,
+    );
     const readinessBody = out.body;
 
     out = await json("/metrics/today", { headers: { authorization: `Bearer ${TOKEN}` } });
