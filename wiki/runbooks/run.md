@@ -36,6 +36,7 @@ model-portable: true
 | Dev server (watch) | `npm run dev` | local-state | `tsx watch src/server.ts`. Default port 3000 — check `OS/system/port-registry.md`. Expose via `npx localtunnel --port 3000` / ngrok for the Twilio webhook (`/webhook/whatsapp`). |
 | Start (no watch) | `npm run start` | local-state | |
 | Fake-provider demo | `npm run demo:fake` | safe | No credentials. |
+| Public demo API smoke | `npm run demo:api:smoke` | local-state | Starts real server with fake calendar/state and proves `/api/demo/*` frontend contract. |
 
 ## Test
 
@@ -45,6 +46,7 @@ model-portable: true
 | Typecheck | `npm run typecheck` | safe | `tsc --noEmit` clean | — |
 | First-test smoke | `npm run first-test:smoke` | local-state | `FIRST_TEST_SMOKE_OK` | — (per README) |
 | Server battletest | `npm run server:battletest` | local-state | `SERVER_BATTLETEST_OK` | — (per README) |
+| Public demo API smoke | `npm run demo:api:smoke` | local-state | `DEMO_API_SMOKE_OK` | — |
 | Style guard | `npm run style:guard` | safe | Tilda voice/style check (python3) | — |
 | Secrets scan | `npm run secrets:scan` | safe | `SECRETS_SCAN_OK` | — |
 | Postgres store smoke | `npm run postgres:smoke` | side-effecting | needs test `DATABASE_URL` | — |
@@ -62,10 +64,10 @@ model-portable: true
 Minimal set proving a change is safe to ship (no external accounts needed):
 
 ```
-npm run check && npm run typecheck && npm run first-test:smoke && npm run server:battletest
+npm run check && npm run typecheck && npm run first-test:smoke && npm run demo:api:smoke && npm run server:battletest
 ```
 
-Expect `FIRST_TEST_SMOKE_OK` and `SERVER_BATTLETEST_OK`. For deployment paths:
+Expect `FIRST_TEST_SMOKE_OK`, `DEMO_API_SMOKE_OK`, and `SERVER_BATTLETEST_OK`. For deployment paths:
 `npm run deployment:preflight` then `npm run deployment:smoke`.
 
 ## Do NOT run without explicit approval

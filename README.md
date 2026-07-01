@@ -15,6 +15,7 @@ WhatsApp (Twilio)  ──>  src/server.ts  (webhook)
                           ├─ src/llm.ts      AI loop (OpenRouter) + tool use
                           ├─ src/tools.ts    check_availability / book_appointment / register_lead
                           ├─ src/scheduling.ts Dual-track booking provider seam (Google + Cal.com)
+                          ├─ src/demo-api.ts  Public demo frontend API seam (/api/demo/*)
                           ├─ src/calendar.ts   Calendar provider seam (fake + Google)
                           ├─ src/calcom.ts     Hosted Cal.com API v2 client
                           ├─ src/slots.ts    free-slot computation (pure, tested)
@@ -53,7 +54,16 @@ clients/salon-demo.yaml  ← one business = one file. Adapt = copy and edit.
    logs a phone follow-up, checks unsigned Twilio webhooks are rejected, validates privacy errors,
    and confirms final recovered-revenue metrics.
 
-4. **Environment** — copy `.env.example` to `.env` and fill in:
+4. **Public demo frontend API** — for `demo.calltilda.com`, run the credential-free contract smoke:
+   ```
+   npm run demo:api:smoke
+   ```
+   Expected result: `DEMO_API_SMOKE_OK`. The contract lives in
+   `docs/frontend-integration-contract.md`. Public browser endpoints are under
+   `/api/demo/*`; protected provider/operator endpoints remain under `/tools/*`,
+   `/webhook/*`, `/operator/*`, `/privacy/*`, and `/metrics/*`.
+
+5. **Environment** — copy `.env.example` to `.env` and fill in:
    - **OpenRouter:** create a key at https://openrouter.ai/keys → `OPENROUTER_API_KEY`.
      If the default model fails, set another one from https://openrouter.ai/models.
    - **Twilio sandbox:** Console → Messaging → Try it out → WhatsApp sandbox.
@@ -87,7 +97,7 @@ clients/salon-demo.yaml  ← one business = one file. Adapt = copy and edit.
      Expected result: `CALCOM_SMOKE_OK`. This creates, retrieves, and cancels a real test
      booking unless `CALCOM_KEEP_SMOKE_BOOKING=true` is set.
 
-5. **Run**
+6. **Run**
    ```
    npm run dev
    ```
@@ -95,12 +105,17 @@ clients/salon-demo.yaml  ← one business = one file. Adapt = copy and edit.
    or ngrok), and in the Twilio sandbox set that public URL + `/webhook/whatsapp`
    under "When a message comes in".
 
-6. **Try the demo:** message the Twilio sandbox number over WhatsApp as if you were a
+7. **Try the demo:** message the Twilio sandbox number over WhatsApp as if you were a
    salon customer. The bot will take you all the way to a booked appointment in the calendar.
 
 ## Production notes
 
 - `GET /health` returns a JSON health check.
+- Public demo frontend endpoints live under `/api/demo/*`: `GET /api/demo/config`,
+  `GET /api/demo/readiness`, `POST /api/demo/check-availability`, and
+  `POST /api/demo/book-appointment`. They are controlled by `DEMO_PUBLIC_API_ENABLED`,
+  `DEMO_PUBLIC_API_MODE`, and `DEMO_PUBLIC_LIVE_BOOKING_ENABLED`; see
+  `docs/frontend-integration-contract.md`.
 - `GET /metrics/today` returns the narrow-wedge proof metrics: inquiries, booked appointments,
   follow-ups, channel mix, estimated booked revenue, and estimated pipeline revenue. Set
   `SERVER_TOOL_TOKEN` to protect it with bearer auth.

@@ -13,6 +13,7 @@
     "landing:contract:smoke": "tsx src/landing-contract-smoke.ts",
     "landing:operator:smoke": "tsx src/landing-operator-smoke.ts",
     "hosted:smoke:contract": "tsx src/hosted-smoke-contract.ts",
+    "demo:api:smoke": "tsx src/demo-api-smoke.ts",
     "secrets:scan": "python3 scripts/check-secrets.py",
     "first-test:smoke": "tsx src/first-test.ts",
     "google-calendar:smoke": "tsx src/google-calendar-smoke.ts",

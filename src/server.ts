@@ -23,6 +23,7 @@ import { sendWhatsapp } from "./whatsapp.js";
 import { alertOwner as sendOwnerAlert } from "./owner-alerts.js";
 import { normalizeVoicePostCallPayload } from "./voice-post-call.js";
 import { renderLandingPage } from "./landing.js";
+import { demoApiReadiness, publicDemoConfig, runDemoAvailability, runDemoBooking } from "./demo-api.js";
 
 const cfg = loadClient();
 const app = express();
@@ -34,6 +35,27 @@ for (const warning of validateRuntimeEnv()) console.warn(`[config] ${warning}`);
 if (process.env.REQUIRE_LIVE_PILOT_READINESS === "true") assertDeploymentReadiness(cfg);
 
 app.get("/", (_req, res) => res.type("html").send(renderLandingPage()));
+app.get("/api/demo/config", (_req, res) => res.json(publicDemoConfig(cfg)));
+app.get("/api/demo/readiness", (_req, res) => {
+  const readiness = demoApiReadiness();
+  res.status(readiness.blockers.length ? 409 : 200).json(readiness);
+});
+app.post("/api/demo/check-availability", async (req, res) => {
+  try {
+    const out = await runDemoAvailability(cfg, req.body ?? {});
+    res.status(out.status).json(out.body);
+  } catch (e: any) {
+    res.status(400).json({ ok: false, error: String(e?.message ?? e) });
+  }
+});
+app.post("/api/demo/book-appointment", async (req, res) => {
+  try {
+    const out = await runDemoBooking(cfg, req.body ?? {});
+    res.status(out.status).json(out.body);
+  } catch (e: any) {
+    res.status(400).json({ ok: false, error: String(e?.message ?? e) });
+  }
+});
 app.get("/health", (_req, res) => res.json({ ok: true, client: cfg.name, storeBackend: getStoreBackend().name, time: new Date().toISOString() }));
 app.get("/readiness/live-pilot", (req, res) => {
   if (!validateToolRequest(req)) return res.status(401).json({ error: "Unauthorized" });
