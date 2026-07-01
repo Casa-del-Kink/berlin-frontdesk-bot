@@ -18,6 +18,8 @@ function run(extraEnv: Record<string, string | undefined> = {}) {
       SERVER_TOOL_TOKEN: SECRET_SENTINEL,
       TWILIO_AUTH_TOKEN: SECRET_SENTINEL,
       TWILIO_ACCOUNT_SID: SECRET_SENTINEL,
+      TWILIO_API_KEY_SID: SECRET_SENTINEL,
+      TWILIO_API_KEY_SECRET: SECRET_SENTINEL,
       OPENROUTER_API_KEY: SECRET_SENTINEL,
       GOOGLE_SA_JSON: SECRET_SENTINEL,
       DATABASE_URL: "postgres://user:***@example.invalid/db",
@@ -50,6 +52,7 @@ function main() {
   assert(body.targets.some((target: any) => target.id === "render" && target.recommendation === "acceptable"), `expected Render acceptable target: ${out.stdout}`);
   assert(body.targets.some((target: any) => target.id === "fly" && target.recommendation === "later"), `expected Fly later target: ${out.stdout}`);
   assert(body.targets.every((target: any) => target.steps.some((step: any) => step.name === "Hosted preflight returns machine-readable readiness")), `expected hosted preflight step for each target: ${out.stdout}`);
+  assert(body.targets.every((target: any) => target.steps.some((step: any) => step.name === "Provider webhook and outbound WhatsApp routing held until hosted smoke passes" && step.envNames.includes("TWILIO_API_KEY_SID"))), `expected Twilio API-key env in provider routing step: ${out.stdout}`);
   assert(String(body.outputPath).endsWith("hosting-handoff-smoke.md"), `expected smoke output path: ${out.stdout}`);
 
   const render = run({ HOSTING_TARGET: "render" });

@@ -408,3 +408,45 @@
   - Smoke verifies target selection, all three target options, hosted-preflight checklist coverage, and no secret sentinel leakage.
 - Blocker: no deploy, live provider routing, Google Calendar, Supabase/Postgres, WhatsApp, voice-provider, or LLM checks were run. This was deliberately a no-credential hosting handoff artifact.
 - Next chunk: add hosted health/readiness curl smoke instructions for the eventual public URL, or run approved live provider smokes only once credentials and fixture cleanup scope are configured.
+
+## 2026-07-01T13:00:35Z hourly build loop
+
+- Branch: `spike/calcom-provider`
+- HEAD before: `08d80af`
+- HEAD after: this local commit (see `git rev-parse HEAD` after commit)
+- Chunk selected: Twilio live-pilot credential hardening, splitting outbound REST API keys from the Auth Token used for webhook validation.
+- Files changed:
+  - `.env.example`
+  - `docs/deployment-readiness.md`
+  - `docs/live-provider-demo.md`
+  - `docs/tilda-autonomous-log.md`
+  - `package.json`
+  - `scripts/check-secrets.py`
+  - `src/config.ts`
+  - `src/deployment-handoff.ts`
+  - `src/deployment-handoff-smoke.ts`
+  - `src/deployment-preflight-smoke.ts`
+  - `src/hosting-handoff.ts`
+  - `src/hosting-handoff-smoke.ts`
+  - `src/twilio-credential-smoke.ts`
+  - `src/whatsapp.ts`
+  - `wiki/research/2026-07-01-host-secret-command-matrix.md`
+  - `wiki/runbooks/run.md`
+- Commands run:
+  - `npm run twilio:credentials:smoke` -> `TWILIO_CREDENTIAL_SMOKE_OK`
+  - `npm run typecheck` -> pass
+  - `npm run deployment:preflight:smoke` -> `DEPLOYMENT_PREFLIGHT_JSON_SMOKE_OK`
+  - `npm run deployment:handoff:smoke` -> `DEPLOYMENT_HANDOFF_SMOKE_OK`
+  - `npm run hosting:handoff:smoke` -> `HOSTING_HANDOFF_SMOKE_OK`
+  - `npm run style:guard` -> `STYLE_GUARD_OK`
+  - `npm run secrets:scan` -> `SECRETS_SCAN_OK`
+  - `npm run deployment:smoke` -> `DEPLOYMENT_SMOKE_OK`
+  - `npm run check` -> pass
+  - `npm run first-test:smoke` -> `FIRST_TEST_SMOKE_OK`
+  - `git diff --check` -> pass
+- Verification added:
+  - `sendWhatsapp` now prefers `TWILIO_API_KEY_SID`/`TWILIO_API_KEY_SECRET` for outbound REST, while keeping `TWILIO_AUTH_TOKEN` as a sandbox fallback and webhook-validation secret.
+  - `/readiness/live-pilot`, deployment handoff, hosting handoff, env templates, and host-secret matrix now require/document the API-key split before live WhatsApp sending.
+  - A no-live-call Twilio credential smoke proves `dryrun`, `auth-token-fallback`, `api-key`, and `incomplete` modes.
+- Blocker: no live WhatsApp, Twilio, Google Calendar, Supabase/Postgres, voice-provider, LLM, deploy, push, or PR action was run in this no-credential loop.
+- Next chunk: add hosted health/readiness curl smoke instructions and script for a future public URL, keeping provider routing blocked until the public endpoint, bearer auth, Twilio signatures, and readiness JSON pass.

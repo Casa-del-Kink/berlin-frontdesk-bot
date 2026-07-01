@@ -149,9 +149,9 @@ function buildItems(): HandoffItem[] {
     {
       phase: "secrets",
       owner: "Roxu",
-      name: "Twilio WhatsApp and webhook validation env",
-      requiredEnv: ["TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_WHATSAPP_FROM", "TWILIO_WEBHOOK_BASE_URL"],
-      configured: configured(["TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_WHATSAPP_FROM", "TWILIO_WEBHOOK_BASE_URL"]),
+      name: "Twilio WhatsApp REST and webhook validation env",
+      requiredEnv: ["TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_API_KEY_SID", "TWILIO_API_KEY_SECRET", "TWILIO_WHATSAPP_FROM", "TWILIO_WEBHOOK_BASE_URL"],
+      configured: configured(["TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_API_KEY_SID", "TWILIO_API_KEY_SECRET", "TWILIO_WHATSAPP_FROM", "TWILIO_WEBHOOK_BASE_URL"]),
       safety: "credential-required",
       command: "npm run server:battletest",
       expectedMarker: "SERVER_BATTLETEST_OK",

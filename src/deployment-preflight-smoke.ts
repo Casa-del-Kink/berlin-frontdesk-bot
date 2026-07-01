@@ -53,6 +53,7 @@ function main() {
   assert(Array.isArray(body.checks) && Array.isArray(body.blockers) && Array.isArray(body.warnings), `expected machine-readable check arrays: ${out.stdout}`);
   assert(body.checks.some((check: any) => check.name === "reviewed follow-up send approval" && check.ok === true), `reviewed follow-up sending should be safe by default: ${out.stdout}`);
   assert(body.blockers.some((check: any) => check.name === "scheduling live smoke proof"), `live scheduling proof should block by default: ${out.stdout}`);
+  assert(body.blockers.some((check: any) => check.name === "twilio credentials" && /TWILIO_API_KEY_SID/.test(check.detail)), `Twilio API-key split should be a live blocker: ${out.stdout}`);
   assertNoSecretLeak(out.combined);
 
   out = run({ DEPLOYMENT_PREFLIGHT_JSON: "true", ALLOW_DEPLOYMENT_BLOCKERS: "true", ENABLE_REVIEWED_FOLLOWUP_SEND: "true" });

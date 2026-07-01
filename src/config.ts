@@ -51,7 +51,10 @@ export function validateRuntimeEnv() {
   const warnings: string[] = [];
   if (!process.env.OPENROUTER_API_KEY) warnings.push("OPENROUTER_API_KEY missing: WhatsApp conversations will fail until set.");
   if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN || !process.env.TWILIO_WHATSAPP_FROM) {
-    warnings.push("Twilio env incomplete: outbound WhatsApp will run in DRYRUN/fail until configured.");
+    warnings.push("Twilio env incomplete: outbound WhatsApp will run in DRYRUN/fail until Account SID, Auth Token for webhook validation, and sender are configured.");
+  }
+  if (process.env.TWILIO_ACCOUNT_SID && (!process.env.TWILIO_API_KEY_SID || !process.env.TWILIO_API_KEY_SECRET)) {
+    warnings.push("Twilio REST API key env missing: outbound WhatsApp will fall back to Auth Token until TWILIO_API_KEY_SID and TWILIO_API_KEY_SECRET are set.");
   }
   if (!process.env.GOOGLE_SA_JSON) warnings.push("GOOGLE_SA_JSON missing: calendar availability/booking tools will fail until set.");
   return warnings;
@@ -148,9 +151,9 @@ export function validateLivePilotReadiness(cfg?: Client): LivePilotReadiness {
     },
     {
       name: "twilio credentials",
-      ok: hasEnv("TWILIO_ACCOUNT_SID") && hasEnv("TWILIO_AUTH_TOKEN") && hasEnv("TWILIO_WHATSAPP_FROM"),
+      ok: hasEnv("TWILIO_ACCOUNT_SID") && hasEnv("TWILIO_AUTH_TOKEN") && hasEnv("TWILIO_API_KEY_SID") && hasEnv("TWILIO_API_KEY_SECRET") && hasEnv("TWILIO_WHATSAPP_FROM"),
       severity: "blocker",
-      detail: "TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_WHATSAPP_FROM are required for live WhatsApp and webhook validation.",
+      detail: "TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_API_KEY_SID, TWILIO_API_KEY_SECRET, and TWILIO_WHATSAPP_FROM are required. Use the Auth Token for webhook signature validation and API key credentials for outbound REST sends.",
     },
     {
       name: "reviewed follow-up send approval",

@@ -89,6 +89,10 @@ Messaging / WhatsApp:
 
 ```text
 TWILIO_ACCOUNT_SID=...
+# Outbound REST credentials. Prefer a Twilio API key scoped to the Tilda Demo subaccount.
+TWILIO_API_KEY_SID=...
+TWILIO_API_KEY_SECRET=...
+# Webhook validation secret. Do not use this as the preferred outbound REST credential.
 TWILIO_AUTH_TOKEN=...
 TWILIO_WHATSAPP_FROM=...
 TWILIO_WEBHOOK_BASE_URL=https://<public-host>
@@ -103,6 +107,13 @@ COMPLIANCE_DPA_REVIEWED=true
 ```
 
 Only set `COMPLIANCE_DPA_REVIEWED=true` after the actual AVV/DPA/subprocessor review is complete. Until then, the readiness endpoint should show a warning.
+
+Twilio credential split for live pilots:
+
+- `TWILIO_AUTH_TOKEN` stays in the runtime because Twilio signs inbound webhooks with it.
+- `TWILIO_API_KEY_SID` and `TWILIO_API_KEY_SECRET` are required for outbound WhatsApp REST sends.
+- The code keeps a backward-compatible Auth Token fallback for local/sandbox sends, but `/readiness/live-pilot` blocks live readiness until API key credentials are configured.
+- Do not paste any Twilio secret into chat or tracked files. Load them through host secret storage.
 
 ## Secrets storage approach
 

@@ -52,7 +52,9 @@ Values must be entered in the hosting provider UI or CLI. Do not commit them.
 | `GOOGLE_SA_JSON` | Google Calendar provider | Michael/Hermes | service-account JSON string |
 | `OPENROUTER_API_KEY` | LLM loop | Michael/Hermes | provider key, never in docs |
 | `TWILIO_ACCOUNT_SID` | WhatsApp/phone provider | Roxu/Michael | from Twilio console |
-| `TWILIO_AUTH_TOKEN` | WhatsApp/phone provider | Roxu/Michael | from Twilio console |
+| `TWILIO_API_KEY_SID` | WhatsApp REST sends | Roxu/Michael | API key for the Tilda Demo subaccount |
+| `TWILIO_API_KEY_SECRET` | WhatsApp REST sends | Roxu/Michael | API key secret, never in docs/chat |
+| `TWILIO_AUTH_TOKEN` | webhook signature validation | Roxu/Michael | keep for inbound Twilio signatures, not preferred for REST sends |
 | `TWILIO_WHATSAPP_FROM` | WhatsApp sender | Roxu/Michael | sandbox first if not approved |
 | `TWILIO_WEBHOOK_BASE_URL=https://<host>` | webhook/public URL | engineering | must match hosted URL/domain |
 | `OWNER_ALERT_MODE` | owner summaries | Michael/Roxu | choose Telegram/email/log route |
@@ -96,6 +98,8 @@ GOOGLE_SA_JSON=<service-account-json-string>
 OPENROUTER_API_KEY=<openrouter-key>
 
 TWILIO_ACCOUNT_SID=<twilio-account-sid>
+TWILIO_API_KEY_SID=<twilio-api-key-sid>
+TWILIO_API_KEY_SECRET=<twilio-api-key-secret>
 TWILIO_AUTH_TOKEN=<twilio-auth-token>
 TWILIO_WHATSAPP_FROM=<twilio-whatsapp-from>
 TWILIO_WEBHOOK_BASE_URL=https://<public-host-or-domain>
@@ -184,7 +188,7 @@ fly secrets set SERVER_TOOL_TOKEN=<generate-long-random-token>
 fly secrets set STORE_BACKEND=postgres DATABASE_URL=<postgres-url> PGSSL=true
 fly secrets set USE_FAKE_CALENDAR=false GOOGLE_SA_JSON=<service-account-json-string>
 fly secrets set OPENROUTER_API_KEY=<openrouter-key>
-fly secrets set TWILIO_ACCOUNT_SID=<twilio-account-sid> TWILIO_AUTH_TOKEN=<twilio-auth-token>
+fly secrets set TWILIO_ACCOUNT_SID=<twilio-account-sid> TWILIO_API_KEY_SID=<twilio-api-key-sid> TWILIO_API_KEY_SECRET=<twilio-api-key-secret> TWILIO_AUTH_TOKEN=<twilio-auth-token>
 fly secrets set TWILIO_WHATSAPP_FROM=<twilio-whatsapp-from> TWILIO_WEBHOOK_BASE_URL=https://<fly-host>
 fly deploy
 ```

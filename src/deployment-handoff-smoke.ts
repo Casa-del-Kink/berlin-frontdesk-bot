@@ -20,7 +20,9 @@ function run(extraEnv: Record<string, string | undefined> = {}) {
       OPENROUTER_API_KEY: SECRET_SENTINEL,
       TWILIO_AUTH_TOKEN: SECRET_SENTINEL,
       TWILIO_ACCOUNT_SID: SECRET_SENTINEL,
-      TWILIO_WHATSAPP_FROM: "whatsapp:+15551234567",
+      TWILIO_API_KEY_SID: SECRET_SENTINEL,
+      TWILIO_API_KEY_SECRET: SECRET_SENTINEL,
+      TWILIO_WHATSAPP_FROM: "whatsapp:+155****4567",
       GOOGLE_SA_JSON: SECRET_SENTINEL,
       DATABASE_URL: "postgres://user:***@example.invalid/db",
       ...extraEnv,
@@ -51,7 +53,7 @@ function main() {
   assert(body.liveProviderItems >= 2, `expected live-provider proof items: ${out.stdout}`);
   assert(Array.isArray(body.items), `expected items array: ${out.stdout}`);
   assert(body.items.some((item: any) => item.name === "Public backend host chosen" && item.owner === "Michael"), `expected host owner handoff: ${out.stdout}`);
-  assert(body.items.some((item: any) => item.name === "Twilio WhatsApp and webhook validation env" && item.owner === "Roxu"), `expected Roxu Twilio handoff: ${out.stdout}`);
+  assert(body.items.some((item: any) => item.name === "Twilio WhatsApp REST and webhook validation env" && item.owner === "Roxu" && item.requiredEnv.includes("TWILIO_API_KEY_SID")), `expected Roxu Twilio API-key split handoff: ${out.stdout}`);
   assert(body.items.some((item: any) => item.name === "Google Calendar create/find/delete proof" && item.command.includes("live-calendar:smoke")), `expected Google Calendar proof command: ${out.stdout}`);
   assert(String(body.outputPath).endsWith("deployment-handoff-smoke.md"), `expected smoke output path: ${out.stdout}`);
 

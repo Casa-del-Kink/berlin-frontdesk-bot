@@ -97,10 +97,10 @@ function commonSteps(target: TargetId): HostingStep[] {
     {
       kind: "provider-routing",
       owner: "Roxu",
-      name: "Provider webhook routing held until hosted smoke passes",
-      envNames: ["TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_WHATSAPP_FROM"],
+      name: "Provider webhook and outbound WhatsApp routing held until hosted smoke passes",
+      envNames: ["TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_API_KEY_SID", "TWILIO_API_KEY_SECRET", "TWILIO_WHATSAPP_FROM"],
       safety: "provider-config",
-      done: envDone(["TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_WHATSAPP_FROM"]),
+      done: envDone(["TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_API_KEY_SID", "TWILIO_API_KEY_SECRET", "TWILIO_WHATSAPP_FROM"]),
       next: "Do not point Twilio, ElevenLabs, or WhatsApp provider traffic at the host until health, readiness, and signature checks pass.",
     },
     {
