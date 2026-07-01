@@ -23,6 +23,8 @@ interface OwnerSummary {
   names: string[];
 }
 
+type SchedulingProvider = "google" | "calcom";
+
 const reviewOnly = process.env.ALLOW_OPERATOR_READINESS_BUNDLE_BLOCKERS === "true";
 const jsonMode = process.env.OPERATOR_READINESS_BUNDLE_JSON === "true";
 const outputPath = process.env.OPERATOR_READINESS_BUNDLE_PATH || "tmp/tilda-ops-snapshot/operator-readiness-bundle.md";
@@ -33,6 +35,15 @@ function ownerFor(check: DeploymentCheck): Owner {
   if (name.includes("twilio") || name.includes("llm") || name.includes("calendar") || name.includes("google") || name.includes("cal.com") || name.includes("calcom") || name.includes("scheduling")) return "provider";
   if (name.includes("retention") || name.includes("privacy") || name.includes("disclosure") || name.includes("avv") || name.includes("dpa")) return "compliance";
   return "engineering";
+}
+
+function activeSchedulingProvider(): SchedulingProvider {
+  const raw = (process.env.SCHEDULING_PROVIDER || process.env.BOOKING_PROVIDER || "google").trim().toLowerCase();
+  return raw === "calcom" || raw === "cal.com" ? "calcom" : "google";
+}
+
+function activeSchedulingProofCommands(provider: SchedulingProvider) {
+  return provider === "calcom" ? ["npm run calcom:smoke"] : ["USE_FAKE_CALENDAR=false npm run live-calendar:smoke"];
 }
 
 function nextAction(check: DeploymentCheck): string {
@@ -93,6 +104,8 @@ function lineForSummary(summary: OwnerSummary) {
 function buildReport() {
   const readiness = validateDeploymentReadiness(loadClient());
   const voice = buildVoiceAgentContractReport();
+  const schedulingProvider = activeSchedulingProvider();
+  const schedulingProofCommands = activeSchedulingProofCommands(schedulingProvider);
   const deploymentFailed: ReadinessItem[] = [...readiness.blockers, ...readiness.warnings].map((check) => ({
     owner: ownerFor(check),
     severity: check.severity as Status,
@@ -122,6 +135,8 @@ function buildReport() {
     voiceBlockerCount,
     voiceWarningCount,
     voiceContractMarker: voice.marker,
+    activeSchedulingProvider: schedulingProvider,
+    activeSchedulingProofCommands: schedulingProofCommands,
     ownerSummaries: summarize(failed),
     nextActions: failed,
     safeCommands: [
@@ -135,9 +150,7 @@ function buildReport() {
       "npm run server:battletest",
     ],
     liveCommandsRequireApproval: [
-      "npm run google-calendar:smoke",
-      "USE_FAKE_CALENDAR=false npm run live-calendar:smoke",
-      "npm run calcom:smoke",
+      ...schedulingProofCommands,
       "npm run supabase:postgres:smoke",
       "VOICE_AGENT_PUBLIC_BASE_URL=https://<public-host> SERVER_TOOL_TOKEN=*** VOICE_AGENT_CONTRACT_JSON=true npm run voice:contract",
     ],
@@ -156,6 +169,8 @@ function toMarkdown(report: ReturnType<typeof buildReport>) {
     `Deployment blockers/warnings: ${report.deploymentBlockerCount}/${report.deploymentWarningCount}`,
     `Voice-agent blockers/warnings: ${report.voiceBlockerCount}/${report.voiceWarningCount}`,
     `Voice-agent contract marker: \`${report.voiceContractMarker}\``,
+    `Active scheduling provider: ${report.activeSchedulingProvider}`,
+    `Active scheduling proof commands: ${report.activeSchedulingProofCommands.map((command) => `\`${command}\``).join(", ")}`,
     "",
     "## Blockers and warnings by owner",
     "",

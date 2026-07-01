@@ -248,7 +248,7 @@ Expected review marker while blockers remain:
 OPERATOR_READINESS_BUNDLE_REVIEW_ONLY
 ```
 
-The command writes `tmp/tilda-ops-snapshot/operator-readiness-bundle.md` and prints the same content. It is report-only: it does not call Google Calendar, Supabase/Postgres, WhatsApp, or a voice provider. It now includes the voice-agent contract marker plus separate deployment and voice blocker/warning counts, so Michael/Roxu can see whether the host, provider mapping, disclosure, or compliance lane is blocking the phone demo.
+The command writes `tmp/tilda-ops-snapshot/operator-readiness-bundle.md` and prints the same content. It is report-only: it does not call Google Calendar, Cal.com, Supabase/Postgres, WhatsApp, or a voice provider. It includes the voice-agent contract marker, separate deployment and voice blocker/warning counts, and the active scheduling provider with only its matching live proof command. That keeps Michael/Roxu from seeing both Google Calendar and Cal.com as simultaneous live-smoke work when one provider path is selected.
 
 Machine-readable mode for scheduled checks:
 
