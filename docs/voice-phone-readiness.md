@@ -120,6 +120,37 @@ Example typed post-call body for a booked call:
 
 The returned draft can be reviewed by the operator or a later approved WhatsApp send step. Do not auto-send post-call drafts until the operator confirms the policy, opt-in basis, and owner handoff process.
 
+## Reviewed WhatsApp follow-up send gate
+
+Endpoint: `POST https://<base-url>/operator/follow-up/send`
+
+This is operator-only and protected by `SERVER_TOOL_TOKEN` when configured. It exists so a post-call draft can move through a reviewed, opt-in checked send path instead of being auto-sent from the voice webhook.
+
+Default behavior is safe: `dryRun` defaults to `true`, so the endpoint validates the reviewed message and returns a send preview without touching Twilio or WhatsApp.
+
+Required body:
+
+```json
+{
+  "phone": "whatsapp:+491****4567",
+  "message": "Hallo Laura, dein Termin ist eingetragen. Falls etwas nicht passt, antworte einfach hier.",
+  "reviewedBy": "operator-name-or-initials",
+  "optInConfirmed": true,
+  "sourceCallId": "el_call_123"
+}
+```
+
+Live sending requires all of these gates:
+
+1. Bearer auth passes.
+2. `phone` uses `whatsapp:+...` format.
+3. `reviewedBy` is present.
+4. `optInConfirmed` is `true`.
+5. `dryRun` is explicitly `false`.
+6. `ENABLE_REVIEWED_FOLLOWUP_SEND=true` is configured in the hosted runtime after provider setup and policy review.
+
+If the live-send flag is missing, a non-dry-run request returns `409` and does not call Twilio. When live sending is enabled, the endpoint sends through the existing WhatsApp provider wrapper and stores the assistant message in the conversation history for privacy export/delete.
+
 ## German compliance cautions for voice
 
 Draft-only planning notes; validate with lawyer/Datenschutz review before real clients.

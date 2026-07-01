@@ -266,3 +266,35 @@
   - Voice HTTP smoke asserts booking and follow-up drafts through the real Express endpoint.
 - Blocker: no live voice/telephony or WhatsApp provider checks were run. Sending post-call drafts remains intentionally separate from this safe no-credential seam.
 - Next chunk: add an explicit reviewed-send endpoint or operator packet for post-call follow-up drafts, gated by bearer auth and opt-in policy.
+
+## 2026-07-01T00:00:33Z hourly build loop
+
+- Branch: `main`
+- HEAD before: `632db8b`
+- HEAD after: this local commit (see `git rev-parse HEAD` after commit)
+- Chunk selected: reviewed post-call WhatsApp follow-up send gate, so voice-call drafts can move through an operator-reviewed, opt-in checked path without accidental provider traffic.
+- Files changed:
+  - `.env.example`
+  - `src/server.ts`
+  - `src/server-battletest.ts`
+  - `docs/voice-phone-readiness.md`
+  - `docs/tilda-autonomous-log.md`
+- Commands run:
+  - `npm run typecheck` -> pass
+  - `npm run server:battletest` -> `SERVER_BATTLETEST_OK`
+  - `npm run style:guard` -> `STYLE_GUARD_OK`
+  - `npm run secrets:scan` -> `SECRETS_SCAN_OK`
+  - `npm run voice:post-call:smoke` -> `VOICE_POST_CALL_NORMALIZER_SMOKE_OK`
+  - `npm run voice:smoke` -> `VOICE_AGENT_TOOL_SMOKE_OK`
+  - `npm run check` -> pass
+  - `npm run first-test:smoke` -> `FIRST_TEST_SMOKE_OK`
+  - `npm run demo:fake` -> `DEMO_FAKE_HAIR_SALON_OK`
+  - `git diff --check` -> pass
+- Verification added:
+  - New `POST /operator/follow-up/send` endpoint is bearer-protected.
+  - Dry-run preview is the default and does not touch Twilio/WhatsApp.
+  - Operator review and opt-in confirmation are required.
+  - Non-dry-run sends fail closed with `409` unless `ENABLE_REVIEWED_FOLLOWUP_SEND=true` is deliberately configured.
+  - Live sends, when enabled later, use the existing WhatsApp provider seam and write the sent assistant message into conversation history for privacy export/delete.
+- Blocker: no live WhatsApp, voice, Google Calendar, or Supabase/Postgres checks were run in this loop. Live follow-up sending remains intentionally disabled until provider setup, opt-in policy, and operator process are approved.
+- Next chunk: add a no-credential operator packet that ties post-call drafts, reviewed-send dry-runs, privacy export, owner alert checks, and deployment readiness into one founder demo command.

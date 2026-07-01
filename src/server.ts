@@ -81,6 +81,28 @@ function booleanBody(value: unknown) {
   return value === true || value === "true" || value === "1";
 }
 
+function stringBody(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function requireReviewedFollowUpBody(req: express.Request) {
+  const phone = stringBody(req.body?.phone);
+  const message = stringBody(req.body?.message);
+  const reviewedBy = stringBody(req.body?.reviewedBy);
+  const sourceCallId = stringBody(req.body?.sourceCallId);
+  const dryRun = req.body?.dryRun === undefined ? true : booleanBody(req.body?.dryRun);
+  const optInConfirmed = booleanBody(req.body?.optInConfirmed);
+
+  if (!phone) throw new Error("Missing required phone");
+  if (!message) throw new Error("Missing required message");
+  if (message.length > 1000) throw new Error("Follow-up message must be 1000 characters or less");
+  if (!reviewedBy) throw new Error("Missing required reviewedBy");
+  if (!optInConfirmed) throw new Error("optInConfirmed must be true before a follow-up can be queued or sent");
+  if (!phone.startsWith("whatsapp:")) throw new Error("phone must use whatsapp:+... format for WhatsApp follow-up sending");
+
+  return { phone, message, reviewedBy, sourceCallId, dryRun };
+}
+
 async function alertOwner(message: string) {
   return sendOwnerAlert(cfg, message);
 }
@@ -112,6 +134,33 @@ app.post("/operator/alert-test", async (req, res) => {
   const message = String(req.body?.message || `Tilda alert test for ${cfg.name}`);
   const result = await alertOwner(message.slice(0, 1000));
   res.json({ ok: true, ownerAlert: result });
+});
+
+// Operator-reviewed follow-up path for voice post-call drafts. Dry-run is the default so
+// operators can validate wording and consent state without sending WhatsApp traffic.
+app.post("/operator/follow-up/send", async (req, res) => {
+  if (!validateToolRequest(req)) return res.status(401).json({ error: "Unauthorized" });
+  try {
+    const followUp = requireReviewedFollowUpBody(req);
+    if (!followUp.dryRun && process.env.ENABLE_REVIEWED_FOLLOWUP_SEND !== "true") {
+      return res.status(409).json({
+        ok: false,
+        sent: false,
+        dryRun: false,
+        error: "Reviewed follow-up sending is disabled. Set ENABLE_REVIEWED_FOLLOWUP_SEND=true only after opt-in and provider setup are approved.",
+      });
+    }
+
+    if (followUp.dryRun) {
+      return res.json({ ok: true, sent: false, dryRun: true, phone: followUp.phone, reviewedBy: followUp.reviewedBy, sourceCallId: followUp.sourceCallId || undefined });
+    }
+
+    const sent = await sendWhatsapp(followUp.phone, followUp.message);
+    await addMessage(followUp.phone, "assistant", followUp.message);
+    res.json({ ok: true, sent, dryRun: false, phone: followUp.phone, reviewedBy: followUp.reviewedBy, sourceCallId: followUp.sourceCallId || undefined });
+  } catch (e: any) {
+    res.status(400).json({ error: String(e?.message ?? e) });
+  }
 });
 
 // Voice/phone post-call webhook for ElevenLabs/Twilio-style call summaries.
