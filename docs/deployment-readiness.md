@@ -100,6 +100,20 @@ SKIP_TWILIO_SIGNATURE_VALIDATION=false
 OPENROUTER_API_KEY=...
 ```
 
+OpenRouter/LLM provider proof:
+
+```bash
+LLM_PROVIDER_SMOKE_APPROVED=true npm run llm:provider:smoke
+```
+
+Expected marker:
+
+```text
+LLM_PROVIDER_SMOKE_OK
+```
+
+The smoke uses only a fixed German salon connectivity fixture and no customer data. It fails closed unless both `OPENROUTER_API_KEY` and `LLM_PROVIDER_SMOKE_APPROVED=true` are present. Regression-test the fail-closed/no-secret branch locally with `npm run llm:provider:smoke:contract`.
+
 Compliance flag:
 
 ```text

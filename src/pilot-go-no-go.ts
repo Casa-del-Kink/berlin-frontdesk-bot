@@ -151,6 +151,17 @@ function providerProofItems(): GoNoGoItem[] {
     },
     {
       lane: "provider-proof",
+      owner: "provider",
+      severity: "proof",
+      name: "OpenRouter LLM provider smoke",
+      detail: "The WhatsApp language loop needs a scoped provider-connectivity proof with a fixed non-customer German salon fixture.",
+      next: "After OPENROUTER_API_KEY is configured, run LLM_PROVIDER_SMOKE_APPROVED=true npm run llm:provider:smoke and verify LLM_PROVIDER_SMOKE_OK without printing key material.",
+      command: "LLM_PROVIDER_SMOKE_APPROVED=true npm run llm:provider:smoke",
+      approvalRequired: true,
+      sideEffect: "none",
+    },
+    {
+      lane: "provider-proof",
       owner: "operator",
       severity: "proof",
       name: "Owner alert route delivered",
