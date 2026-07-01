@@ -35,6 +35,8 @@
     "operator:demo:packet": "tsx src/operator-demo-packet.ts",
     "provider:proof:manifest": "tsx src/provider-proof-manifest.ts",
     "provider:proof:manifest:smoke": "tsx src/provider-proof-manifest-smoke.ts",
+    "pilot:go-no-go": "tsx src/pilot-go-no-go.ts",
+    "pilot:go-no-go:smoke": "tsx src/pilot-go-no-go-smoke.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

@@ -179,6 +179,40 @@ OPERATOR_DEMO_PACKET_JSON=true npm run operator:demo:packet
 
 Expected JSON marker: `OPERATOR_DEMO_PACKET_OK`, with `noLiveProviderCalls: true` and `liveCommandsRequireApproval` listing live provider checks that remain out of scope.
 
+## Pilot go/no-go report
+
+Generate a no-credential go/no-go queue that combines deployment blockers, voice contract blockers, and remaining live proof items into one owner-routed artifact:
+
+```bash
+npm run pilot:go-no-go
+```
+
+Expected marker while blockers or proof items remain:
+
+```text
+PILOT_GO_NO_GO_NO_GO
+```
+
+The command writes `tmp/tilda-ops-snapshot/pilot-go-no-go.md`. It is report-only and does not call Google Calendar, Supabase/Postgres, WhatsApp, voice providers, or LLM providers. Use it as the first operator handoff before a hosted demo or first-pilot readiness review.
+
+Machine-readable mode for scheduled checks:
+
+```bash
+PILOT_GO_NO_GO_JSON=true npm run pilot:go-no-go
+```
+
+Regression-test the report shape locally:
+
+```bash
+npm run pilot:go-no-go:smoke
+```
+
+Expected marker:
+
+```text
+PILOT_GO_NO_GO_SMOKE_OK
+```
+
 Expected markers:
 
 ```text
