@@ -21,6 +21,17 @@ function hasEnv(name: string) {
   return Boolean(process.env[name]?.trim());
 }
 
+function validTimestampEnv(name: string) {
+  const value = process.env[name]?.trim();
+  if (!value) return false;
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp);
+}
+
+function anyValidTimestampEnv(names: string[]) {
+  return names.some(validTimestampEnv);
+}
+
 function envEquals(name: string, value: string) {
   return process.env[name] === value;
 }
@@ -63,17 +74,17 @@ function schedulingLiveSmokeCheck(): DeploymentCheck {
   if (provider === "calcom") {
     return {
       name: "scheduling live smoke proof",
-      ok: hasEnv("CALCOM_SMOKE_TESTED_AT"),
+      ok: validTimestampEnv("CALCOM_SMOKE_TESTED_AT"),
       severity: "blocker",
-      detail: "Run npm run calcom:smoke against the approved Cal.com test event type, verify create/get/cancel cleanup, then set CALCOM_SMOKE_TESTED_AT to the proof timestamp in the hosted runtime.",
+      detail: "Run npm run calcom:smoke against the approved Cal.com test event type, verify create/get/cancel cleanup, then set CALCOM_SMOKE_TESTED_AT to a valid ISO proof timestamp in the hosted runtime.",
     };
   }
   if (provider === "google") {
     return {
       name: "scheduling live smoke proof",
-      ok: hasEnv("GOOGLE_CALENDAR_SMOKE_TESTED_AT") || hasEnv("LIVE_CALENDAR_SMOKE_TESTED_AT"),
+      ok: anyValidTimestampEnv(["GOOGLE_CALENDAR_SMOKE_TESTED_AT", "LIVE_CALENDAR_SMOKE_TESTED_AT"]),
       severity: "blocker",
-      detail: "Run USE_FAKE_CALENDAR=false npm run live-calendar:smoke against the approved dev/pilot calendar, verify fixture cleanup or visible-proof mode, then set LIVE_CALENDAR_SMOKE_TESTED_AT or GOOGLE_CALENDAR_SMOKE_TESTED_AT.",
+      detail: "Run USE_FAKE_CALENDAR=false npm run live-calendar:smoke against the approved dev/pilot calendar, verify fixture cleanup or visible-proof mode, then set LIVE_CALENDAR_SMOKE_TESTED_AT or GOOGLE_CALENDAR_SMOKE_TESTED_AT to a valid ISO proof timestamp.",
     };
   }
   return {

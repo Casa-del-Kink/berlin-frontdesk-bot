@@ -22,6 +22,20 @@ interface GoNoGoItem {
 
 const jsonMode = process.env.PILOT_GO_NO_GO_JSON === "true";
 const outputPath = process.env.PILOT_GO_NO_GO_PATH || "tmp/tilda-ops-snapshot/pilot-go-no-go.md";
+const SECRET_VALUE_PATTERNS = [
+  /[A-Za-z0-9_]*KEY[A-Za-z0-9_]*\s*=\s*[^\s<*]+/i,
+  /[A-Za-z0-9_]*SECRET[A-Za-z0-9_]*\s*=\s*[^\s<*]+/i,
+  /[A-Za-z0-9_]*TOKEN[A-Za-z0-9_]*\s*=\s*[^\s<*]+/i,
+  /DATABASE_URL\s*=\s*[^\s<*]+/i,
+  /POSTGRES_URL\s*=\s*[^\s<*]+/i,
+  /GOOGLE_SA_JSON\s*=\s*\{.+\}/i,
+];
+
+function assertNoSecretValues(text: string) {
+  for (const pattern of SECRET_VALUE_PATTERNS) {
+    if (pattern.test(text)) throw new Error(`pilot go/no-go report may contain a secret-shaped value: ${pattern}`);
+  }
+}
 
 function ownerForDeployment(check: DeploymentCheck): Owner {
   const name = check.name.toLowerCase();
@@ -207,6 +221,7 @@ function buildReport() {
     proofCount: proofItems.length,
     deploymentMarker: deployment.ok ? "DEPLOYMENT_READY" : "DEPLOYMENT_BLOCKED",
     voiceContractMarker: voice.marker,
+    noSecretsPrinted: true,
     noLiveProviderCalls: true,
     outputPath,
     items,
@@ -244,6 +259,7 @@ function toMarkdown(report: ReturnType<typeof buildReport>) {
     `Proof items before live pilot: ${report.proofCount}`,
     `Deployment marker: ${report.deploymentMarker}`,
     `Voice contract marker: \`${report.voiceContractMarker}\``,
+    `No secrets printed: ${String(report.noSecretsPrinted)}`,
     `No live provider calls made: ${String(report.noLiveProviderCalls)}`,
     "",
     "## By owner",
@@ -269,10 +285,13 @@ function toMarkdown(report: ReturnType<typeof buildReport>) {
 
 const report = buildReport();
 const markdown = toMarkdown(report);
+const json = JSON.stringify(report, null, 2);
+assertNoSecretValues(markdown);
+assertNoSecretValues(json);
 mkdirSync(dirname(outputPath), { recursive: true });
 writeFileSync(outputPath, markdown);
 
-if (jsonMode) console.log(JSON.stringify(report, null, 2));
+if (jsonMode) console.log(json);
 else {
   console.log(markdown);
   console.log(`pilot_go_no_go_path=${outputPath}`);

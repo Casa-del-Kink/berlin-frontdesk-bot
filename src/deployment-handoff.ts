@@ -35,6 +35,17 @@ function hasEnv(name: string) {
   return Boolean(process.env[name]?.trim());
 }
 
+function validTimestampEnv(name: string) {
+  const value = process.env[name]?.trim();
+  if (!value) return false;
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp);
+}
+
+function anyValidTimestampEnv(names: string[]) {
+  return names.some(validTimestampEnv);
+}
+
 function configured(requiredEnv: string[]): boolean | "not-env" {
   const plain = requiredEnv.filter((name) => /^[A-Z0-9_]+$/.test(name));
   if (plain.length !== requiredEnv.length) return "not-env";
@@ -65,7 +76,7 @@ function schedulingItems(): HandoffItem[] {
         owner: "provider",
         name: "Cal.com create/get/cancel proof",
         requiredEnv: ["CALCOM_SMOKE_TESTED_AT"],
-        configured: configured(["CALCOM_SMOKE_TESTED_AT"]),
+        configured: validTimestampEnv("CALCOM_SMOKE_TESTED_AT"),
         safety: "live-provider",
         command: "npm run calcom:smoke",
         expectedMarker: "CALCOM_SMOKE_OK",
@@ -90,7 +101,7 @@ function schedulingItems(): HandoffItem[] {
       owner: "provider",
       name: "Google Calendar create/find/delete proof",
       requiredEnv: ["LIVE_CALENDAR_SMOKE_TESTED_AT or GOOGLE_CALENDAR_SMOKE_TESTED_AT"],
-      configured: hasEnv("LIVE_CALENDAR_SMOKE_TESTED_AT") || hasEnv("GOOGLE_CALENDAR_SMOKE_TESTED_AT"),
+      configured: anyValidTimestampEnv(["LIVE_CALENDAR_SMOKE_TESTED_AT", "GOOGLE_CALENDAR_SMOKE_TESTED_AT"]),
       safety: "live-provider",
       command: "USE_FAKE_CALENDAR=false npm run live-calendar:smoke",
       expectedMarker: "LIVE_CALENDAR_BOOKING_SMOKE_OK",
@@ -160,7 +171,7 @@ function buildItems(): HandoffItem[] {
       owner: "operator",
       name: "Owner alert route proof",
       requiredEnv: ["ownerWhatsapp in client YAML or OWNER_ALERT_LOG_ONLY_ACCEPTED", "OWNER_ALERT_TESTED_AT"],
-      configured: hasEnv("OWNER_ALERT_TESTED_AT") || hasEnv("OWNER_ALERT_LOG_ONLY_ACCEPTED"),
+      configured: validTimestampEnv("OWNER_ALERT_TESTED_AT") || hasEnv("OWNER_ALERT_LOG_ONLY_ACCEPTED"),
       safety: "provider-traffic",
       command: "npm run operator:demo:packet, then POST /operator/alert-test with bearer auth for the approved destination",
       expectedMarker: "OPERATOR_DEMO_PACKET_OK plus received owner alert proof",

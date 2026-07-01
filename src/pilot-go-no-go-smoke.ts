@@ -40,6 +40,7 @@ function main() {
   const body = JSON.parse(out.stdout);
   assert(body.marker === "PILOT_GO_NO_GO_NO_GO", `expected no-go marker while blockers remain: ${out.stdout}`);
   assert(body.go === false, `expected go=false while blockers remain: ${out.stdout}`);
+  assert(body.noSecretsPrinted === true, `expected noSecretsPrinted flag: ${out.stdout}`);
   assert(body.noLiveProviderCalls === true, `expected no live provider calls: ${out.stdout}`);
   assert(body.blockerCount > 0, `expected blockers: ${out.stdout}`);
   assert(body.proofCount >= 5, `expected live proof checklist items: ${out.stdout}`);

@@ -39,11 +39,11 @@ SERVER_TOOL_TOKEN=<long random bearer token>
 DATA_RETENTION_DAYS=30
 # Internal hosted demo only, when owner alerts are intentionally console/log-only:
 # OWNER_ALERT_LOG_ONLY_ACCEPTED=true
-# Real client pilot only, after a successful protected alert test:
+# Real client pilot only, after a successful protected alert test. Must be a valid ISO timestamp:
 # OWNER_ALERT_TESTED_AT=2026-06-30T10:15:00+02:00
 # Reviewed voice-to-WhatsApp follow-up sending stays disabled unless explicitly approved:
 # ENABLE_REVIEWED_FOLLOWUP_SEND=false
-# Set only when live follow-up sends are approved:
+# Set only when live follow-up sends are approved. Must be a valid ISO timestamp:
 # FOLLOWUP_SEND_REVIEWED_AT=2026-06-30T10:20:00+02:00
 ```
 
@@ -55,7 +55,7 @@ Calendar:
 SCHEDULING_PROVIDER=google
 USE_FAKE_CALENDAR=false
 GOOGLE_SA_JSON=<one-line service account JSON>
-# Set after the approved live-calendar smoke creates, verifies, and deletes the fixture.
+# Set after the approved live-calendar smoke creates, verifies, and deletes the fixture. Must be a valid ISO timestamp.
 LIVE_CALENDAR_SMOKE_TESTED_AT=<timestamp>
 ```
 
@@ -70,7 +70,7 @@ CALCOM_EVENT_TYPE_ID=<numeric event type id>
 CALCOM_EVENT_TYPE_SLUG=<event slug>
 CALCOM_USERNAME=<user slug>
 # or CALCOM_TEAM_SLUG=<team slug>
-# Set after npm run calcom:smoke creates, verifies, and cancels the approved test booking.
+# Set after npm run calcom:smoke creates, verifies, and cancels the approved test booking. Must be a valid ISO timestamp.
 CALCOM_SMOKE_TESTED_AT=<timestamp>
 ```
 

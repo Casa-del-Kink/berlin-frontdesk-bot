@@ -74,6 +74,13 @@ function hasEnv(name: string) {
   return Boolean(process.env[name]?.trim());
 }
 
+function validTimestampEnv(name: string) {
+  const value = process.env[name]?.trim();
+  if (!value) return false;
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp);
+}
+
 function positiveNumberEnv(name: string) {
   const value = Number(process.env[name]);
   return Number.isFinite(value) && value > 0;
@@ -147,9 +154,9 @@ export function validateLivePilotReadiness(cfg?: Client): LivePilotReadiness {
     },
     {
       name: "reviewed follow-up send approval",
-      ok: process.env.ENABLE_REVIEWED_FOLLOWUP_SEND !== "true" || hasEnv("FOLLOWUP_SEND_REVIEWED_AT"),
+      ok: process.env.ENABLE_REVIEWED_FOLLOWUP_SEND !== "true" || validTimestampEnv("FOLLOWUP_SEND_REVIEWED_AT"),
       severity: "blocker",
-      detail: "ENABLE_REVIEWED_FOLLOWUP_SEND may only be true after opt-in, provider setup, and operator review are approved; set FOLLOWUP_SEND_REVIEWED_AT to that approval timestamp.",
+      detail: "ENABLE_REVIEWED_FOLLOWUP_SEND may only be true after opt-in, provider setup, and operator review are approved; set FOLLOWUP_SEND_REVIEWED_AT to a valid ISO approval timestamp.",
     },
     {
       name: "llm provider",
@@ -189,9 +196,9 @@ export function validateLivePilotReadiness(cfg?: Client): LivePilotReadiness {
     },
     {
       name: "owner alert route tested",
-      ok: process.env.OWNER_ALERT_LOG_ONLY_ACCEPTED === "true" || (Boolean(cfg?.ownerWhatsapp?.trim()) && hasEnv("OWNER_ALERT_TESTED_AT")),
+      ok: process.env.OWNER_ALERT_LOG_ONLY_ACCEPTED === "true" || (Boolean(cfg?.ownerWhatsapp?.trim()) && validTimestampEnv("OWNER_ALERT_TESTED_AT")),
       severity: "blocker",
-      detail: "Before live traffic, run the protected /operator/alert-test route and set OWNER_ALERT_TESTED_AT to the successful test timestamp in the hosted runtime.",
+      detail: "Before live traffic, run the protected /operator/alert-test route and set OWNER_ALERT_TESTED_AT to a valid ISO successful-test timestamp in the hosted runtime.",
     },
     {
       name: "production store",

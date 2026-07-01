@@ -126,6 +126,22 @@ function main() {
     ALLOW_DEPLOYMENT_BLOCKERS: "true",
     SCHEDULING_PROVIDER: "calcom",
     CALCOM_API_KEY: "cal_test_preflight",
+    CALCOM_EVENT_TYPE_SLUG: "haircut",
+    CALCOM_USERNAME: "tilda-demo",
+    CALCOM_SMOKE_TESTED_AT: "not-a-timestamp",
+  });
+  assert(out.status === 0, `invalid Cal.com timestamp review mode should exit 0: ${out.combined}`);
+  body = parseJson(out.stdout);
+  assert(
+    body.blockers.some((check: any) => check.name === "scheduling live smoke proof" && check.ok === false && /valid ISO proof timestamp/.test(check.detail)),
+    `invalid CALCOM_SMOKE_TESTED_AT should not satisfy live smoke proof: ${out.stdout}`,
+  );
+
+  out = run({
+    DEPLOYMENT_PREFLIGHT_JSON: "true",
+    ALLOW_DEPLOYMENT_BLOCKERS: "true",
+    SCHEDULING_PROVIDER: "calcom",
+    CALCOM_API_KEY: "cal_test_preflight",
     CALCOM_EVENT_TYPE_ID: "",
     CALCOM_EVENT_TYPE_SLUG: "haircut",
     CALCOM_USERNAME: "tilda-demo",
