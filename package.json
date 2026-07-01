@@ -32,6 +32,7 @@
     "deployment:smoke": "tsx src/deployment-smoke.ts",
     "operator:readiness:bundle": "tsx src/operator-readiness-bundle.ts",
     "operator:readiness:bundle:smoke": "tsx src/operator-readiness-bundle-smoke.ts",
+    "operator:demo:packet": "tsx src/operator-demo-packet.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

@@ -52,7 +52,8 @@ model-portable: true
 | Live calendar booking | `npm run live-calendar:smoke` | side-effecting | writes a real calendar event | — |
 | Voice agent tool smoke | `npm run voice:smoke` | local-state | ElevenLabs server-tool path | — |
 | Operator readiness bundle smoke | `npm run operator:readiness:bundle:smoke` | local-state | `OPERATOR_READINESS_BUNDLE_SMOKE_OK` | — |
-| Supabase Postgres smoke | `npm run supabase:postgres:smoke` | side-effecting | bash + test DB | — |
+| Operator demo packet | `npm run operator:demo:packet` | local-state | `OPERATOR_DEMO_PACKET_OK` | — |
+| Supabase Postgres smoke | `npm run supabase:postgres:smoke` | side-effecting | needs test DB | — |
 
 ## Verify (what "green" means here)
 

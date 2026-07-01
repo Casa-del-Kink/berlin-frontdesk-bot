@@ -298,3 +298,31 @@
   - Live sends, when enabled later, use the existing WhatsApp provider seam and write the sent assistant message into conversation history for privacy export/delete.
 - Blocker: no live WhatsApp, voice, Google Calendar, or Supabase/Postgres checks were run in this loop. Live follow-up sending remains intentionally disabled until provider setup, opt-in policy, and operator process are approved.
 - Next chunk: add a no-credential operator packet that ties post-call drafts, reviewed-send dry-runs, privacy export, owner alert checks, and deployment readiness into one founder demo command.
+
+## 2026-07-01T03:00:33Z hourly build loop
+
+- Branch: `main`
+- HEAD before: `179abbe`
+- HEAD after: this local commit (see `git rev-parse HEAD` after commit)
+- Chunk selected: no-credential operator demo packet tying voice post-call drafts, reviewed-send dry-runs, privacy export, owner alert checks, readiness, and metrics into one founder-proof command.
+- Files changed:
+  - `src/operator-demo-packet.ts`
+  - `package.json`
+  - `docs/deployment-readiness.md`
+  - `wiki/runbooks/run.md`
+  - `docs/tilda-autonomous-log.md`
+- Commands run:
+  - `npm run operator:demo:packet` -> `OPERATOR_DEMO_PACKET_OK`
+  - `OPERATOR_DEMO_PACKET_JSON=true npm run operator:demo:packet` -> JSON marker `OPERATOR_DEMO_PACKET_OK`
+- Verification added:
+  - Real Express server starts with fake calendar and local JSON state.
+  - Protected readiness rejects missing bearer auth and exposes live blockers in authorized review mode.
+  - Owner alert test runs in accepted log-only internal demo mode.
+  - Voice post-call typed fields produce a reviewed WhatsApp follow-up draft.
+  - Reviewed follow-up dry-run validates operator review and opt-in without provider sends.
+  - Non-dry-run follow-up sending fails closed with `409` until explicit provider approval env is set.
+  - Privacy export retrieves the stored call outcome.
+  - Phone follow-up lead capture appears in protected metrics.
+  - Machine-readable packet mode reports `noLiveProviderCalls: true` and live commands that still require approval.
+- Blocker: no live Google Calendar, Supabase/Postgres, WhatsApp, or voice-provider checks were run. The packet is intentionally no-credential and writes only an ignored local handoff under `tmp/tilda-ops-snapshot/`.
+- Next chunk: add hosted deployment target examples or run live provider smokes only if approved credentials are configured and the fixture cleanup/visible-proof scope is explicit.

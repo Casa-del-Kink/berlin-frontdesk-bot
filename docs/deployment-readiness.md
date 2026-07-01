@@ -155,6 +155,30 @@ Expected marker:
 OPERATOR_READINESS_BUNDLE_SMOKE_OK
 ```
 
+## Operator demo packet
+
+Generate a no-credential founder/operator packet that starts the real server with fake providers and proves the phone-to-follow-up path end to end:
+
+```bash
+npm run operator:demo:packet
+```
+
+Expected marker:
+
+```text
+OPERATOR_DEMO_PACKET_OK
+```
+
+The command writes `tmp/tilda-ops-snapshot/operator-demo-packet.md`. It verifies protected readiness, accepted log-only owner alert testing for an internal demo, a voice post-call follow-up draft from typed fields, reviewed follow-up dry-run, live follow-up fail-closed behavior, privacy export, and protected metrics. It does not call live Google Calendar, Supabase/Postgres, WhatsApp, or a voice provider.
+
+Machine-readable mode for scheduled checks:
+
+```bash
+OPERATOR_DEMO_PACKET_JSON=true npm run operator:demo:packet
+```
+
+Expected JSON marker: `OPERATOR_DEMO_PACKET_OK`, with `noLiveProviderCalls: true` and `liveCommandsRequireApproval` listing live provider checks that remain out of scope.
+
 Expected markers:
 
 ```text
