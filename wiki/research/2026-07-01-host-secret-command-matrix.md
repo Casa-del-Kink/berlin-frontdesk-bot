@@ -58,6 +58,10 @@ Values must be entered in the hosting provider UI or CLI. Do not commit them.
 | `OWNER_ALERT_MODE` | owner summaries | Michael/Roxu | choose Telegram/email/log route |
 | `OWNER_ALERT_DESTINATION` | owner summaries | Michael/Roxu | exact destination, not public |
 | `OWNER_ALERT_TESTED_AT` | readiness proof | engineering | set only after real alert smoke passes |
+| `TILDA_OPERATOR_LEGAL_NAME` | public website footer | Roxu | real legal/freelancer business name |
+| `TILDA_PUBLIC_CONTACT_EMAIL` | public website footer/contact button | Roxu | durable public contact email |
+| `TILDA_PRIVACY_EMAIL` | public website footer/privacy | Roxu | privacy/admin contact email |
+| `TILDA_FOOTER_NOTE` | public website footer | Michael/Roxu | optional short AI reception/data note |
 
 ## Values still needed from Roxu
 
@@ -99,6 +103,11 @@ TWILIO_WEBHOOK_BASE_URL=https://<public-host-or-domain>
 OWNER_ALERT_MODE=<telegram-or-email-or-log>
 OWNER_ALERT_DESTINATION=<owner-alert-destination>
 OWNER_ALERT_TESTED_AT=<set-after-successful-alert-test>
+
+TILDA_OPERATOR_LEGAL_NAME=<operator-legal-name>
+TILDA_PUBLIC_CONTACT_EMAIL=<public-contact-email>
+TILDA_PRIVACY_EMAIL=<privacy-email>
+TILDA_FOOTER_NOTE=<public-footer-note>
 ```
 
 ## Render command matrix

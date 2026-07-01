@@ -16,7 +16,9 @@ function assertLandingContract(body: string, source: string) {
   assert(body.includes("Ich bin die KI-Rezeption"), `${source}: missing German AI disclosure`);
   assert(body.includes("Short summaries only by default"), `${source}: missing summary-only data posture`);
   assert(body.includes("Human handoff"), `${source}: missing human handoff section`);
-  assert(body.includes("OPERATOR_LEGAL_NAME_PLACEHOLDER"), `${source}: missing operator placeholder gate`);
+  assert(body.includes("Operator:"), `${source}: missing operator footer`);
+  assert(body.includes("Contact:"), `${source}: missing contact footer`);
+  assert(body.includes("Privacy:"), `${source}: missing privacy footer`);
   assert(!body.toLowerCase().includes("dog grooming"), `${source}: must not broaden to dog grooming`);
   assert(!body.toLowerCase().includes("massage"), `${source}: must not broaden to massage`);
   assert(!body.toLowerCase().includes("beauty/nails"), `${source}: must not broaden to beauty/nails`);

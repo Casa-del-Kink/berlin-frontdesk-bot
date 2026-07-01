@@ -1,4 +1,50 @@
-export function renderLandingPage() {
+type LandingOperator = {
+  legalName: string;
+  contactEmail: string;
+  privacyEmail: string;
+  footerNote: string;
+};
+
+const DEFAULT_OPERATOR: LandingOperator = {
+  legalName: "OPERATOR_LEGAL_NAME_PLACEHOLDER",
+  contactEmail: "OPERATOR_EMAIL_PLACEHOLDER",
+  privacyEmail: "PRIVACY_EMAIL_PLACEHOLDER",
+  footerNote: "CallTilder / Tilda is in pilot preparation. Replace all operator placeholders before provider submission or public launch.",
+};
+
+function escapeHtml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function mailto(email: string) {
+  return email.includes("@") ? `mailto:${encodeURIComponent(email)}` : "mailto:OPERATOR_EMAIL_PLACEHOLDER";
+}
+
+export function landingOperatorFromEnv(env: NodeJS.ProcessEnv = process.env): LandingOperator {
+  return {
+    legalName: env.TILDA_OPERATOR_LEGAL_NAME?.trim() || DEFAULT_OPERATOR.legalName,
+    contactEmail: env.TILDA_PUBLIC_CONTACT_EMAIL?.trim() || DEFAULT_OPERATOR.contactEmail,
+    privacyEmail: env.TILDA_PRIVACY_EMAIL?.trim() || DEFAULT_OPERATOR.privacyEmail,
+    footerNote: env.TILDA_FOOTER_NOTE?.trim() || DEFAULT_OPERATOR.footerNote,
+  };
+}
+
+export function hasOperatorPlaceholders(operator: LandingOperator) {
+  return Object.values(operator).some((value) => value.includes("PLACEHOLDER"));
+}
+
+export function renderLandingPage(operator: LandingOperator = landingOperatorFromEnv()) {
+  const legalName = escapeHtml(operator.legalName);
+  const contactEmail = escapeHtml(operator.contactEmail);
+  const privacyEmail = escapeHtml(operator.privacyEmail);
+  const footerNote = escapeHtml(operator.footerNote);
+  const contactHref = escapeHtml(mailto(operator.contactEmail));
+
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -38,7 +84,7 @@ export function renderLandingPage() {
       <h2>Warm front desk help when your team is with a client</h2>
       <p>Tilda is built for small salon teams that cannot always pick up the phone during cuts, color, treatments, or cleanup. The first pilot is intentionally narrow: overflow and no-answer only, with a Tilda-owned number and clear handoff rules.</p>
       <div class="cta">
-        <a class="button primary" href="mailto:OPERATOR_EMAIL_PLACEHOLDER">Ask about a Berlin salon pilot</a>
+        <a class="button primary" href="${contactHref}">Ask about a Berlin salon pilot</a>
         <a class="button secondary" href="/health">View service health</a>
       </div>
     </section>
@@ -80,8 +126,8 @@ export function renderLandingPage() {
     </section>
 
     <footer>
-      <p><strong>Operator:</strong> OPERATOR_LEGAL_NAME_PLACEHOLDER · <strong>Contact:</strong> OPERATOR_EMAIL_PLACEHOLDER · <strong>Privacy:</strong> PRIVACY_EMAIL_PLACEHOLDER</p>
-      <p>CallTilder / Tilda is in pilot preparation. Replace all operator placeholders before provider submission or public launch.</p>
+      <p><strong>Operator:</strong> ${legalName} · <strong>Contact:</strong> ${contactEmail} · <strong>Privacy:</strong> ${privacyEmail}</p>
+      <p>${footerNote}</p>
     </footer>
   </main>
 </body>
