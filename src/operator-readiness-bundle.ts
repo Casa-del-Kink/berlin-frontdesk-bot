@@ -1,10 +1,20 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { loadClient } from "./config.js";
+import { buildVoiceAgentContractReport, type VoiceAgentContractCheck } from "./elevenlabs-agent-contract.js";
 import { validateDeploymentReadiness, type DeploymentCheck } from "./readiness.js";
 
-type Owner = "engineering" | "provider" | "operator" | "compliance";
+type Owner = "engineering" | "provider" | "operator" | "compliance" | "voice";
 type Status = "blocker" | "warning";
+
+interface ReadinessItem {
+  owner: Owner;
+  severity: Status;
+  name: string;
+  action: string;
+  detail: string;
+  source: "deployment" | "voice-agent";
+}
 
 interface OwnerSummary {
   owner: Owner;
@@ -46,14 +56,26 @@ function nextAction(check: DeploymentCheck): string {
   return actions[check.name] || check.detail;
 }
 
-function summarize(checks: DeploymentCheck[]): OwnerSummary[] {
+function voiceOwnerFor(check: VoiceAgentContractCheck): Owner {
+  const name = check.name.toLowerCase();
+  if (name.includes("disclosure") || name.includes("privacy") || name.includes("transcript") || name.includes("recording")) return "compliance";
+  if (name.includes("provider") || name.includes("public https") || name.includes("post-call")) return "voice";
+  if (name.includes("bearer") || name.includes("documentation")) return "engineering";
+  return "voice";
+}
+
+function readinessItemLabel(item: ReadinessItem) {
+  return item.source === "voice-agent" ? `voice-agent:${item.name}` : item.name;
+}
+
+function summarize(items: ReadinessItem[]): OwnerSummary[] {
   const grouped = new Map<Owner, OwnerSummary>();
-  for (const check of checks.filter((item) => !item.ok)) {
-    const owner = ownerFor(check);
+  for (const check of items) {
+    const owner = check.owner;
     const summary = grouped.get(owner) ?? { owner, blockerCount: 0, warningCount: 0, names: [] };
     if (check.severity === "blocker") summary.blockerCount += 1;
     else summary.warningCount += 1;
-    summary.names.push(check.name);
+    summary.names.push(readinessItemLabel(check));
     grouped.set(owner, summary);
   }
   return [...grouped.values()].sort((a, b) => a.owner.localeCompare(b.owner));
@@ -68,17 +90,38 @@ function lineForSummary(summary: OwnerSummary) {
 
 function buildReport() {
   const readiness = validateDeploymentReadiness(loadClient());
-  const failed = [...readiness.blockers, ...readiness.warnings];
-  const marker = readiness.blockers.length > 0 ? (reviewOnly ? "OPERATOR_READINESS_BUNDLE_REVIEW_ONLY" : "OPERATOR_READINESS_BUNDLE_BLOCKED") : readiness.warnings.length > 0 ? "OPERATOR_READINESS_BUNDLE_OK_WITH_WARNINGS" : "OPERATOR_READINESS_BUNDLE_OK";
+  const voice = buildVoiceAgentContractReport();
+  const deploymentFailed: ReadinessItem[] = [...readiness.blockers, ...readiness.warnings].map((check) => ({
+    owner: ownerFor(check),
+    severity: check.severity as Status,
+    name: check.name,
+    action: nextAction(check),
+    detail: check.detail,
+    source: "deployment",
+  }));
+  const voiceFailed: ReadinessItem[] = voice.checks
+    .filter((check) => !check.ok)
+    .map((check) => ({ owner: voiceOwnerFor(check), severity: check.severity as Status, name: check.name, action: check.next, detail: check.detail, source: "voice-agent" }));
+  const failed = [...deploymentFailed, ...voiceFailed];
+  const voiceBlockerCount = voice.checks.filter((check) => !check.ok && check.severity === "blocker").length;
+  const voiceWarningCount = voice.checks.filter((check) => !check.ok && check.severity === "warning").length;
+  const blockerCount = readiness.blockers.length + voiceBlockerCount;
+  const warningCount = readiness.warnings.length + voiceWarningCount;
+  const marker = blockerCount > 0 ? (reviewOnly ? "OPERATOR_READINESS_BUNDLE_REVIEW_ONLY" : "OPERATOR_READINESS_BUNDLE_BLOCKED") : warningCount > 0 ? "OPERATOR_READINESS_BUNDLE_OK_WITH_WARNINGS" : "OPERATOR_READINESS_BUNDLE_OK";
   return {
     marker,
     generatedAt: new Date().toISOString(),
     client: loadClient().name,
-    ok: readiness.ok,
-    blockerCount: readiness.blockers.length,
-    warningCount: readiness.warnings.length,
-    ownerSummaries: summarize(readiness.checks),
-    nextActions: failed.map((check) => ({ owner: ownerFor(check), severity: check.severity as Status, name: check.name, action: nextAction(check), detail: check.detail })),
+    ok: blockerCount === 0,
+    blockerCount,
+    warningCount,
+    deploymentBlockerCount: readiness.blockers.length,
+    deploymentWarningCount: readiness.warnings.length,
+    voiceBlockerCount,
+    voiceWarningCount,
+    voiceContractMarker: voice.marker,
+    ownerSummaries: summarize(failed),
+    nextActions: failed,
     safeCommands: [
       "npm run typecheck",
       "npm run style:guard",
@@ -86,6 +129,7 @@ function buildReport() {
       "npm run deployment:preflight:smoke",
       "npm run operator:readiness:bundle:smoke",
       "npm run voice:smoke",
+      "npm run voice:contract:smoke",
       "npm run server:battletest",
     ],
     liveCommandsRequireApproval: [
@@ -106,6 +150,9 @@ function toMarkdown(report: ReturnType<typeof buildReport>) {
     `Client: ${report.client}`,
     `Blockers: ${report.blockerCount}`,
     `Warnings: ${report.warningCount}`,
+    `Deployment blockers/warnings: ${report.deploymentBlockerCount}/${report.deploymentWarningCount}`,
+    `Voice-agent blockers/warnings: ${report.voiceBlockerCount}/${report.voiceWarningCount}`,
+    `Voice-agent contract marker: \`${report.voiceContractMarker}\``,
     "",
     "## Blockers and warnings by owner",
     "",
@@ -113,7 +160,7 @@ function toMarkdown(report: ReturnType<typeof buildReport>) {
     "",
     "## Next actions",
     "",
-    ...report.nextActions.map((item) => `- ${item.owner}/${item.severity}: ${item.name} — ${item.action}`),
+    ...report.nextActions.map((item) => `- ${item.owner}/${item.severity}: ${readinessItemLabel(item)} — ${item.action}`),
     "",
     "## Safe commands before live provider checks",
     "",

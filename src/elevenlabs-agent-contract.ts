@@ -1,9 +1,10 @@
 import { existsSync } from "node:fs";
+import { pathToFileURL } from "node:url";
 import { hasExplicitAiDisclosure, loadClient } from "./config.js";
 
 type Severity = "blocker" | "warning";
 
-interface Check {
+export interface VoiceAgentContractCheck {
   name: string;
   ok: boolean;
   severity: Severity;
@@ -11,7 +12,7 @@ interface Check {
   next: string;
 }
 
-interface ToolContract {
+export interface ToolContract {
   name: "check_availability" | "book_appointment" | "register_lead";
   method: "POST";
   url: string;
@@ -20,6 +21,29 @@ interface ToolContract {
   requiredBody: Record<string, unknown>;
   voiceInstruction: string;
   successMarker: string;
+}
+
+export interface VoiceAgentContractReport {
+  marker: "VOICE_AGENT_CONTRACT_BLOCKED" | "VOICE_AGENT_CONTRACT_REVIEW_ONLY" | "VOICE_AGENT_CONTRACT_OK_WITH_WARNINGS" | "VOICE_AGENT_CONTRACT_OK";
+  generatedAt: string;
+  provider: string;
+  client: string;
+  publicBaseConfigured: boolean;
+  blockerCount: number;
+  warningCount: number;
+  checks: VoiceAgentContractCheck[];
+  tools: ToolContract[];
+  postCallWebhook: {
+    method: "POST";
+    url: string;
+    auth: string;
+    expectedFields: string[];
+    allowedStatuses: string[];
+    storageDefault: string;
+    successMarker: string;
+  };
+  localProofBeforeProvider: string[];
+  liveProofWhenHosted: string[];
 }
 
 const REDACTED_AUTH = ["Authorization:", "Bearer", "REDACTED"].join(" ");
@@ -74,7 +98,7 @@ function toolContracts(): ToolContract[] {
   ];
 }
 
-function checks(): Check[] {
+export function voiceAgentContractChecks(): VoiceAgentContractCheck[] {
   const cfg = loadClient();
   return [
     {
@@ -136,8 +160,8 @@ function checks(): Check[] {
   ];
 }
 
-function buildReport() {
-  const allChecks = checks();
+export function buildVoiceAgentContractReport(): VoiceAgentContractReport {
+  const allChecks = voiceAgentContractChecks();
   const blockers = allChecks.filter((check) => !check.ok && check.severity === "blocker");
   const warnings = allChecks.filter((check) => !check.ok && check.severity === "warning");
   return {
@@ -164,7 +188,7 @@ function buildReport() {
   };
 }
 
-function printReport(report: ReturnType<typeof buildReport>) {
+export function printVoiceAgentContractReport(report: VoiceAgentContractReport) {
   console.log("VOICE_AGENT_CONTRACT_START");
   console.log(`provider=${report.provider}`);
   console.log(`client=${report.client}`);
@@ -196,8 +220,12 @@ function printReport(report: ReturnType<typeof buildReport>) {
   console.log(report.marker);
 }
 
-const report = buildReport();
-if (jsonMode) console.log(JSON.stringify(report, null, 2));
-else printReport(report);
+export function runVoiceAgentContractCli() {
+  const report = buildVoiceAgentContractReport();
+  if (jsonMode) console.log(JSON.stringify(report, null, 2));
+  else printVoiceAgentContractReport(report);
 
-if (report.blockerCount > 0 && !reviewOnly) process.exit(1);
+  if (report.blockerCount > 0 && !reviewOnly) process.exit(1);
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) runVoiceAgentContractCli();

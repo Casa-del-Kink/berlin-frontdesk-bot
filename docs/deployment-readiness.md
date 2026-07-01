@@ -119,7 +119,7 @@ DEPLOYMENT_PREFLIGHT_JSON_SMOKE_OK
 
 ## Operator readiness bundle
 
-Generate a founder/operator handoff that groups live blockers by owner without scraping console output:
+Generate a founder/operator handoff that groups live deployment and voice-agent blockers by owner without scraping console output:
 
 ```bash
 ALLOW_OPERATOR_READINESS_BUNDLE_BLOCKERS=true npm run operator:readiness:bundle
@@ -131,7 +131,7 @@ Expected review marker while blockers remain:
 OPERATOR_READINESS_BUNDLE_REVIEW_ONLY
 ```
 
-The command writes `tmp/tilda-ops-snapshot/operator-readiness-bundle.md` and prints the same content. It is report-only: it does not call Google Calendar, Supabase/Postgres, WhatsApp, or a voice provider.
+The command writes `tmp/tilda-ops-snapshot/operator-readiness-bundle.md` and prints the same content. It is report-only: it does not call Google Calendar, Supabase/Postgres, WhatsApp, or a voice provider. It now includes the voice-agent contract marker plus separate deployment and voice blocker/warning counts, so Michael/Roxu can see whether the host, provider mapping, disclosure, or compliance lane is blocking the phone demo.
 
 Machine-readable mode for scheduled checks:
 

@@ -50,6 +50,10 @@ function main() {
   assert(body.ownerSummaries.some((summary: any) => summary.owner === "operator"), `expected operator owner group: ${out.stdout}`);
   assert(body.ownerSummaries.some((summary: any) => summary.owner === "provider"), `expected provider owner group: ${out.stdout}`);
   assert(body.ownerSummaries.some((summary: any) => summary.owner === "engineering"), `expected engineering owner group: ${out.stdout}`);
+  assert(body.ownerSummaries.some((summary: any) => summary.owner === "voice"), `expected voice owner group: ${out.stdout}`);
+  assert(body.voiceContractMarker === "VOICE_AGENT_CONTRACT_BLOCKED", `expected blocked voice contract marker: ${out.stdout}`);
+  assert(body.voiceBlockerCount > 0, `expected voice blockers to be included: ${out.stdout}`);
+  assert(body.nextActions.some((item: any) => item.source === "voice-agent" && item.name === "public HTTPS base URL"), `expected voice-agent next actions: ${out.stdout}`);
   assertNoSecretLeak(out.combined);
 
   out = run({ OPERATOR_READINESS_BUNDLE_JSON: "true", ALLOW_OPERATOR_READINESS_BUNDLE_BLOCKERS: "true", SERVER_TOOL_TOKEN: SECRET });
@@ -57,6 +61,7 @@ function main() {
   body = parseJson(out.stdout);
   assert(body.marker === "OPERATOR_READINESS_BUNDLE_REVIEW_ONLY", `expected review marker: ${out.stdout}`);
   assert(body.nextActions.some((item: any) => item.name === "server tool token length" && item.owner === "engineering") === false, `long token should satisfy token-length action: ${out.stdout}`);
+  assert(body.nextActions.some((item: any) => item.name === "server tool bearer token" && item.source === "voice-agent") === false, `long token should satisfy voice bearer action: ${out.stdout}`);
   assert(body.nextActions.some((item: any) => item.name === "owner alert destination" && item.owner === "operator"), `expected owner alert next action: ${out.stdout}`);
   assertNoSecretLeak(out.combined);
 
