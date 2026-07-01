@@ -33,6 +33,8 @@
     "deployment:preflight:smoke": "tsx src/deployment-preflight-smoke.ts",
     "deployment:handoff": "tsx src/deployment-handoff.ts",
     "deployment:handoff:smoke": "tsx src/deployment-handoff-smoke.ts",
+    "hosting:handoff": "tsx src/hosting-handoff.ts",
+    "hosting:handoff:smoke": "tsx src/hosting-handoff-smoke.ts",
     "deployment:smoke": "tsx src/deployment-smoke.ts",
     "operator:readiness:bundle": "tsx src/operator-readiness-bundle.ts",
     "operator:readiness:bundle:smoke": "tsx src/operator-readiness-bundle-smoke.ts",

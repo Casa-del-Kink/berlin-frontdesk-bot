@@ -173,6 +173,42 @@ DEPLOYMENT_HANDOFF_SMOKE_OK
 
 The smoke verifies both Google and Cal.com scheduling-provider handoff branches and checks that sentinel secrets are not printed.
 
+## Hosting handoff
+
+Generate a no-secret hosting-target checklist before Michael/Roxu choose where the backend will run:
+
+```bash
+npm run hosting:handoff
+```
+
+Expected marker:
+
+```text
+HOSTING_HANDOFF_OK
+```
+
+The default recommendation is a Hetzner VPS Node service because it gives stronger EU hosting control and predictable cost for provider webhooks. Render is an acceptable fast demo path if account ownership, region, and wake behavior are acceptable. Fly is kept as a later option when release operations are worth the extra setup. The report writes `tmp/tilda-ops-snapshot/hosting-handoff.md`, prints only env names and manual checklist status, and does not deploy, route provider traffic, call live providers, or print secret values.
+
+Machine-readable mode for scheduled checks:
+
+```bash
+HOSTING_HANDOFF_JSON=true npm run hosting:handoff
+```
+
+Regression-test it locally:
+
+```bash
+npm run hosting:handoff:smoke
+```
+
+Expected marker:
+
+```text
+HOSTING_HANDOFF_SMOKE_OK
+```
+
+The smoke verifies target selection, Hetzner/Render/Fly coverage, hosted-preflight checklist coverage, and secret sentinel redaction.
+
 ## Operator readiness bundle
 
 Generate a founder/operator handoff that groups live deployment and voice-agent blockers by owner without scraping console output:

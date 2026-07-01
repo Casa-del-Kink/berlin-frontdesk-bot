@@ -49,6 +49,7 @@ model-portable: true
 | Server Cal.com battletest | `npm run server:calcom:battletest` | local-state | `SERVER_CALCOM_BATTLETEST_OK`; starts real server against a local mock Cal.com API, no live provider calls | — |
 | Public demo API smoke | `npm run demo:api:smoke` | local-state | `DEMO_API_SMOKE_OK` | — |
 | Deployment handoff smoke | `npm run deployment:handoff:smoke` | safe | `DEPLOYMENT_HANDOFF_SMOKE_OK`; no-secret hosted handoff report shape | — |
+| Hosting handoff smoke | `npm run hosting:handoff:smoke` | safe | `HOSTING_HANDOFF_SMOKE_OK`; no-secret hosting target checklist | — |
 | Style guard | `npm run style:guard` | safe | Tilda voice/style check (python3) | — |
 | Secrets scan | `npm run secrets:scan` | safe | `SECRETS_SCAN_OK` | — |
 | Postgres store smoke | `npm run postgres:smoke` | side-effecting | needs test `DATABASE_URL` | — |

@@ -377,3 +377,34 @@
   - Smoke injects secret sentinels and asserts the manifest does not print them.
 - Blocker: live Google Calendar, Supabase/Postgres, WhatsApp, voice-provider, and LLM smokes were not run. This loop deliberately produced the no-secret proof map before any approved live-provider checks.
 - Next chunk: add a hosted env handoff checklist for Hetzner/Render/Fly-style deployment targets, or run specific live provider smokes only when approved credentials and fixture cleanup scope are configured.
+
+## 2026-07-01T12:00:34Z hourly build loop
+
+- Branch: `spike/calcom-provider`
+- HEAD before: `96436da`
+- HEAD after: this local commit (see `git rev-parse HEAD` after commit)
+- Chunk selected: hosted-demo deployment target handoff, so Michael/Roxu can pick Hetzner VPS, Render, or Fly with a no-secret checklist before routing provider webhooks.
+- Files changed:
+  - `src/hosting-handoff.ts`
+  - `src/hosting-handoff-smoke.ts`
+  - `package.json`
+  - `docs/deployment-readiness.md`
+  - `wiki/runbooks/run.md`
+  - `docs/tilda-autonomous-log.md`
+- Commands run:
+  - `npm run hosting:handoff:smoke` -> `HOSTING_HANDOFF_SMOKE_OK`
+  - `npm run typecheck` -> pass
+  - `npm run deployment:handoff:smoke` -> `DEPLOYMENT_HANDOFF_SMOKE_OK`
+  - `npm run style:guard` -> `STYLE_GUARD_OK`
+  - `npm run secrets:scan` -> `SECRETS_SCAN_OK`
+  - `git diff --check` -> pass
+  - `npm run deployment:smoke` -> `DEPLOYMENT_SMOKE_OK`
+  - `npm run provider:proof:manifest:smoke` -> `PROVIDER_PROOF_MANIFEST_SMOKE_OK`
+  - `npm run pilot:go-no-go:smoke` -> `PILOT_GO_NO_GO_SMOKE_OK`
+- Verification added:
+  - New `npm run hosting:handoff` writes `tmp/tilda-ops-snapshot/hosting-handoff.md` and supports JSON mode.
+  - Default target is Hetzner VPS, with Render as acceptable and Fly as later.
+  - Each target includes host URL, core env, local smoke, hosted preflight, provider-routing hold, and rollback checklist items.
+  - Smoke verifies target selection, all three target options, hosted-preflight checklist coverage, and no secret sentinel leakage.
+- Blocker: no deploy, live provider routing, Google Calendar, Supabase/Postgres, WhatsApp, voice-provider, or LLM checks were run. This was deliberately a no-credential hosting handoff artifact.
+- Next chunk: add hosted health/readiness curl smoke instructions for the eventual public URL, or run approved live provider smokes only once credentials and fixture cleanup scope are configured.
