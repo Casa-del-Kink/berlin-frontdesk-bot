@@ -10,7 +10,15 @@ function keepSmokeBooking() {
   return process.env.CALCOM_KEEP_SMOKE_BOOKING === "true";
 }
 
+function assertApproved() {
+  assert(
+    process.env.CALCOM_SMOKE_APPROVED === "true",
+    "Cal.com live smoke creates a real test booking. Set CALCOM_SMOKE_APPROVED=true only after the event type and attendee fixture are approved.",
+  );
+}
+
 async function main() {
+  assertApproved();
   const cfg = calcomConfigFromEnv();
   assert(cfg.attendeeEmail, "Missing CALCOM_TEST_ATTENDEE_EMAIL. The live Cal.com smoke needs a real attendee email for the test booking.");
   const client = new CalcomClient({ apiKey: cfg.apiKey, baseUrl: cfg.baseUrl });

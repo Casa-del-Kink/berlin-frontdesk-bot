@@ -43,7 +43,7 @@ function activeSchedulingProvider(): SchedulingProvider {
 }
 
 function activeSchedulingProofCommands(provider: SchedulingProvider) {
-  return provider === "calcom" ? ["npm run calcom:smoke"] : ["USE_FAKE_CALENDAR=false npm run live-calendar:smoke"];
+  return provider === "calcom" ? ["CALCOM_SMOKE_APPROVED=true npm run calcom:smoke"] : ["USE_FAKE_CALENDAR=false npm run live-calendar:smoke"];
 }
 
 function nextAction(check: DeploymentCheck): string {

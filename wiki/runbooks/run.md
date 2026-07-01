@@ -50,6 +50,7 @@ model-portable: true
 | Server Cal.com battletest | `npm run server:calcom:battletest` | local-state | `SERVER_CALCOM_BATTLETEST_OK`; starts real server against a local mock Cal.com API, no live provider calls | — |
 | Public demo API smoke | `npm run demo:api:smoke` | local-state | `DEMO_API_SMOKE_OK` | — |
 | Public demo API Cal.com smoke | `npm run demo:api:calcom:smoke` | local-state | `DEMO_API_CALCOM_SMOKE_OK`; no live provider calls, mock Cal.com only | — |
+| Cal.com live-smoke contract | `npm run calcom:smoke:contract` | safe | `CALCOM_SMOKE_CONTRACT_OK`; proves the live smoke fails closed without approval and does not print secret sentinels | — |
 | Deployment handoff smoke | `npm run deployment:handoff:smoke` | safe | `DEPLOYMENT_HANDOFF_SMOKE_OK`; no-secret hosted handoff report shape | — |
 | Hosting handoff smoke | `npm run hosting:handoff:smoke` | safe | `HOSTING_HANDOFF_SMOKE_OK`; no-secret hosting target checklist | — |
 | Twilio credential smoke | `npm run twilio:credentials:smoke` | safe | `TWILIO_CREDENTIAL_SMOKE_OK`; verifies API-key-over-Auth-Token outbound REST selection without provider calls | — |
@@ -60,6 +61,7 @@ model-portable: true
 | Postgres store smoke | `npm run postgres:smoke` | side-effecting | needs test `DATABASE_URL` | — |
 | Google Calendar smoke | `npm run google-calendar:smoke` | side-effecting | needs Google SA creds | — |
 | Live calendar booking | `npm run live-calendar:smoke` | side-effecting | writes a real calendar event | — |
+| Cal.com live booking | `CALCOM_SMOKE_APPROVED=true npm run calcom:smoke` | side-effecting | writes, verifies, and cancels a real Cal.com test booking | — |
 | Voice agent tool smoke | `npm run voice:smoke` | local-state | ElevenLabs server-tool path | — |
 | Operator readiness bundle smoke | `npm run operator:readiness:bundle:smoke` | local-state | `OPERATOR_READINESS_BUNDLE_SMOKE_OK` | — |
 | Operator demo packet | `npm run operator:demo:packet` | local-state | `OPERATOR_DEMO_PACKET_OK` | — |

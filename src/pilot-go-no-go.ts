@@ -95,7 +95,7 @@ function schedulingProofItem(): GoNoGoItem {
       name: "Cal.com live booking smoke",
       detail: "Cal.com scheduling demos need a real available-slot, create, get, and cancel proof against the approved test event type.",
       next: "Run only after Cal.com API key and a safe test event type are configured; confirm the fixture was cancelled unless visible proof was explicitly requested.",
-      command: "npm run calcom:smoke",
+      command: "CALCOM_SMOKE_APPROVED=true npm run calcom:smoke",
       approvalRequired: true,
       sideEffect: "live-provider",
     };

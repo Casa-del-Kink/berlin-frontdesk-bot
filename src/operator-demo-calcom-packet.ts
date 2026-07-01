@@ -163,7 +163,7 @@ function buildPacketReport(steps: Step[], facts: Record<string, unknown>) {
     steps,
     facts,
     noLiveProviderCalls: true,
-    liveCommandsRequireApproval: ["npm run calcom:smoke", "npm run supabase:postgres:smoke", "npm run voice:contract"],
+    liveCommandsRequireApproval: ["CALCOM_SMOKE_APPROVED=true npm run calcom:smoke", "npm run supabase:postgres:smoke", "npm run voice:contract"],
   };
 }
 
@@ -194,7 +194,7 @@ function writePacket(report: ReturnType<typeof buildPacketReport>) {
     "",
     "## Next live steps",
     "",
-    "- Run `npm run calcom:smoke` only after Cal.com API credentials and an approved test event type are configured.",
+    "- Run `CALCOM_SMOKE_APPROVED=true npm run calcom:smoke` only after Cal.com API credentials and an approved test event type are configured.",
     "- Verify the live Cal.com smoke cancels its fixture unless visible-proof mode is explicitly requested.",
     "- Keep this packet as a local mock proof, not as evidence that hosted Cal.com is ready.",
     "",

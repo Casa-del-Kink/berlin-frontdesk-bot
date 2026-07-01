@@ -76,7 +76,7 @@ function schedulingLiveSmokeCheck(): DeploymentCheck {
       name: "scheduling live smoke proof",
       ok: validTimestampEnv("CALCOM_SMOKE_TESTED_AT"),
       severity: "blocker",
-      detail: "Run npm run calcom:smoke against the approved Cal.com test event type, verify create/get/cancel cleanup, then set CALCOM_SMOKE_TESTED_AT to a valid ISO proof timestamp in the hosted runtime.",
+      detail: "Run CALCOM_SMOKE_APPROVED=true npm run calcom:smoke against the approved Cal.com test event type, verify create/get/cancel cleanup, then set CALCOM_SMOKE_TESTED_AT to a valid ISO proof timestamp in the hosted runtime.",
     };
   }
   if (provider === "google") {

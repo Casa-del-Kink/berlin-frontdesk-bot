@@ -78,7 +78,7 @@ function schedulingItems(): HandoffItem[] {
         requiredEnv: ["CALCOM_SMOKE_TESTED_AT"],
         configured: validTimestampEnv("CALCOM_SMOKE_TESTED_AT"),
         safety: "live-provider",
-        command: "npm run calcom:smoke",
+        command: "CALCOM_SMOKE_APPROVED=true npm run calcom:smoke",
         expectedMarker: "CALCOM_SMOKE_OK",
         next: "Run only against an approved test event type; verify cancellation or explicitly report visible proof mode.",
       },

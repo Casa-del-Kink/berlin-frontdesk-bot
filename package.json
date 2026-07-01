@@ -51,7 +51,8 @@
     "typecheck": "tsc --noEmit",
     "calcom:check": "tsx src/calcom-provider-check.ts",
     "scheduling:provider:check": "tsx src/scheduling-provider-check.ts",
-    "calcom:smoke": "tsx src/calcom-smoke.ts"
+    "calcom:smoke": "tsx src/calcom-smoke.ts",
+    "calcom:smoke:contract": "tsx src/calcom-smoke-contract.ts"
   },
   "dependencies": {
     "dotenv": "^16.4.5",

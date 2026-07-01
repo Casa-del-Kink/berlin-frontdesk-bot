@@ -56,7 +56,7 @@ function main() {
   assert(body.activeSchedulingProvider === "google", `expected default active scheduling provider: ${out.stdout}`);
   assert(body.activeSchedulingProofCommands.length === 1 && body.activeSchedulingProofCommands[0].includes("live-calendar:smoke"), `expected Google live-calendar active proof command: ${out.stdout}`);
   assert(body.liveCommandsRequireApproval.some((command: string) => command.includes("live-calendar:smoke")), `expected active Google live proof to require approval: ${out.stdout}`);
-  assert(!body.liveCommandsRequireApproval.includes("npm run calcom:smoke"), `inactive Cal.com smoke should not appear as a live approval command in Google mode: ${out.stdout}`);
+  assert(!body.liveCommandsRequireApproval.includes("CALCOM_SMOKE_APPROVED=true npm run calcom:smoke"), `inactive Cal.com smoke should not appear as a live approval command in Google mode: ${out.stdout}`);
   assert(body.nextActions.some((item: any) => item.source === "voice-agent" && item.name === "public HTTPS base URL"), `expected voice-agent next actions: ${out.stdout}`);
   assertNoSecretLeak(out.combined);
 
@@ -64,8 +64,8 @@ function main() {
   assert(out.status === 0, `review-only Cal.com operator bundle should exit 0: ${out.combined}`);
   body = parseJson(out.stdout);
   assert(body.activeSchedulingProvider === "calcom", `expected Cal.com active scheduling provider: ${out.stdout}`);
-  assert(body.activeSchedulingProofCommands.length === 1 && body.activeSchedulingProofCommands[0] === "npm run calcom:smoke", `expected Cal.com smoke active proof command: ${out.stdout}`);
-  assert(body.liveCommandsRequireApproval.includes("npm run calcom:smoke"), `expected active Cal.com live proof to require approval: ${out.stdout}`);
+  assert(body.activeSchedulingProofCommands.length === 1 && body.activeSchedulingProofCommands[0] === "CALCOM_SMOKE_APPROVED=true npm run calcom:smoke", `expected approved Cal.com smoke active proof command: ${out.stdout}`);
+  assert(body.liveCommandsRequireApproval.includes("CALCOM_SMOKE_APPROVED=true npm run calcom:smoke"), `expected active Cal.com live proof to require approval: ${out.stdout}`);
   assert(!body.liveCommandsRequireApproval.some((command: string) => command.includes("live-calendar:smoke")), `inactive Google live-calendar smoke should not appear as a live approval command in Cal.com mode: ${out.stdout}`);
   assert(body.nextActions.some((item: any) => item.name === "scheduling live smoke proof" && /calcom:smoke/.test(item.detail)), `expected Cal.com scheduling proof next action: ${out.stdout}`);
   assertNoSecretLeak(out.combined);

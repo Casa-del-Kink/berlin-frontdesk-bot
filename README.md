@@ -92,10 +92,11 @@ clients/salon-demo.yaml  ← one business = one file. Adapt = copy and edit.
      `CALCOM_TEST_ATTENDEE_EMAIL`, and either `CALCOM_EVENT_TYPE_ID` or
      `CALCOM_EVENT_TYPE_SLUG` plus `CALCOM_USERNAME`/`CALCOM_TEAM_SLUG`, then run:
      ```
-     npm run calcom:smoke
+     CALCOM_SMOKE_APPROVED=true npm run calcom:smoke
      ```
      Expected result: `CALCOM_SMOKE_OK`. This creates, retrieves, and cancels a real test
-     booking unless `CALCOM_KEEP_SMOKE_BOOKING=true` is set.
+     booking unless `CALCOM_KEEP_SMOKE_BOOKING=true` is set. Run `npm run calcom:smoke:contract`
+     locally to verify the live smoke fails closed without approval and does not print secret sentinels.
 
 6. **Run**
    ```
