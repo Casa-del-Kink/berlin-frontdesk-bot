@@ -52,9 +52,25 @@ For a real client pilot, configure `ownerWhatsapp` in the client YAML instead of
 Calendar:
 
 ```text
+SCHEDULING_PROVIDER=google
 USE_FAKE_CALENDAR=false
 GOOGLE_SA_JSON=<one-line service account JSON>
 ```
+
+Hosted Cal.com alternative:
+
+```text
+SCHEDULING_PROVIDER=calcom
+CALCOM_API_KEY=<Cal.com API key>
+# Use one complete selector:
+CALCOM_EVENT_TYPE_ID=<numeric event type id>
+# or:
+CALCOM_EVENT_TYPE_SLUG=<event slug>
+CALCOM_USERNAME=<user slug>
+# or CALCOM_TEAM_SLUG=<team slug>
+```
+
+For Cal.com, Tilda still owns the conversation, proof metrics, idempotency, privacy endpoints, and owner alerts. Cal.com is only the scheduling layer and must already sync bookings to the salon or demo Google Calendar. Run `npm run calcom:smoke` only with approved test credentials because it creates, verifies, and cancels a real booking unless `CALCOM_KEEP_SMOKE_BOOKING=true` is deliberately set.
 
 Database:
 
@@ -338,7 +354,7 @@ Minimum first hosted demo monitoring:
 3. provider webhook failure count from host logs
 4. daily owner summary output at 20:00 business timezone
 5. Supabase Postgres smoke after backend/schema changes
-6. Google Calendar smoke after calendar credential or sharing changes
+6. Google Calendar smoke after calendar credential or sharing changes, or Cal.com smoke after Cal.com event type or connected-calendar changes
 
 ## Rollback plan
 
@@ -357,7 +373,7 @@ Go only when:
 - `npm run deployment:preflight` passes without review-only mode
 - `/readiness/live-pilot` returns `200`
 - Supabase Postgres smoke passes in the target runtime
-- Google Calendar cleanup smoke passes
+- Google Calendar cleanup smoke passes for `SCHEDULING_PROVIDER=google`, or Cal.com create/get/cancel smoke passes for `SCHEDULING_PROVIDER=calcom`
 - Twilio webhook signature validation is active
 - operator endpoints require bearer auth
 - owner alert destination is configured for a client pilot, or explicitly accepted as log-only for an internal hosted demo
@@ -369,4 +385,5 @@ No-go when:
 - no public HTTPS webhook base is configured
 - Twilio signature validation is skipped
 - live provider credentials are missing
+- Cal.com is selected but the event type selector is incomplete, for example a slug without `CALCOM_USERNAME` or `CALCOM_TEAM_SLUG`
 - AVV/DPA/compliance review is being represented as complete when it is not
