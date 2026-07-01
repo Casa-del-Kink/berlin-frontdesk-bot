@@ -55,6 +55,8 @@ Calendar:
 SCHEDULING_PROVIDER=google
 USE_FAKE_CALENDAR=false
 GOOGLE_SA_JSON=<one-line service account JSON>
+# Set after the approved live-calendar smoke creates, verifies, and deletes the fixture.
+LIVE_CALENDAR_SMOKE_TESTED_AT=<timestamp>
 ```
 
 Hosted Cal.com alternative:
@@ -68,9 +70,13 @@ CALCOM_EVENT_TYPE_ID=<numeric event type id>
 CALCOM_EVENT_TYPE_SLUG=<event slug>
 CALCOM_USERNAME=<user slug>
 # or CALCOM_TEAM_SLUG=<team slug>
+# Set after npm run calcom:smoke creates, verifies, and cancels the approved test booking.
+CALCOM_SMOKE_TESTED_AT=<timestamp>
 ```
 
 For Cal.com, Tilda still owns the conversation, proof metrics, idempotency, privacy endpoints, and owner alerts. Cal.com is only the scheduling layer and must already sync bookings to the salon or demo Google Calendar. Run `npm run calcom:smoke` only with approved test credentials because it creates, verifies, and cancels a real booking unless `CALCOM_KEEP_SMOKE_BOOKING=true` is deliberately set.
+
+Deployment preflight is provider-aware: `SCHEDULING_PROVIDER=google` must disable `USE_FAKE_CALENDAR`; `SCHEDULING_PROVIDER=calcom` is not blocked by `USE_FAKE_CALENDAR`, but it still requires a successful Cal.com live smoke proof timestamp before first-pilot traffic.
 
 Database:
 

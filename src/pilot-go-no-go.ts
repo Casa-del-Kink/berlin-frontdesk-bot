@@ -26,7 +26,7 @@ const outputPath = process.env.PILOT_GO_NO_GO_PATH || "tmp/tilda-ops-snapshot/pi
 function ownerForDeployment(check: DeploymentCheck): Owner {
   const name = check.name.toLowerCase();
   if (name.includes("owner alert")) return "operator";
-  if (name.includes("twilio") || name.includes("llm") || name.includes("calendar") || name.includes("google") || name.includes("webhook")) return "provider";
+  if (name.includes("twilio") || name.includes("llm") || name.includes("calendar") || name.includes("google") || name.includes("cal.com") || name.includes("calcom") || name.includes("scheduling") || name.includes("webhook")) return "provider";
   if (name.includes("retention") || name.includes("privacy") || name.includes("disclosure") || name.includes("avv") || name.includes("dpa")) return "compliance";
   return "engineering";
 }
@@ -44,11 +44,12 @@ function nextForDeployment(check: DeploymentCheck): string {
     "twilio credentials": "Configure Twilio account/API credentials and WhatsApp sender in secret storage.",
     "reviewed follow-up send approval": "Keep live reviewed follow-up sends disabled until a test number, opt-in, and approval timestamp are set.",
     "llm provider": "Configure OPENROUTER_API_KEY in hosted secret storage after provider account approval.",
-    "calendar provider": "Set USE_FAKE_CALENDAR=false and configure the Google service account calendar.",
+    "scheduling provider": "Configure the selected booking provider: Google Calendar service account or Cal.com API key plus event type selector.",
+    "scheduling runtime provider": "For Google, set USE_FAKE_CALENDAR=false. For Cal.com, keep fake-provider smokes separate from the hosted Cal.com runtime.",
+    "scheduling live smoke proof": "Run the selected provider smoke and set the matching proof timestamp only after create/get/cancel cleanup succeeds.",
     "retention policy": "Set DATA_RETENTION_DAYS to the agreed first-pilot retention window.",
     "owner alert destination": "Configure ownerWhatsapp in the client YAML or accept log-only mode only for an internal hosted demo.",
     "owner alert route tested": "Run /operator/alert-test with bearer auth and set OWNER_ALERT_TESTED_AT only after delivery is confirmed.",
-    "fake calendar disabled": "Disable USE_FAKE_CALENDAR for live demos and pilots.",
     "postgres database URL": "Set DATABASE_URL or POSTGRES_URL for STORE_BACKEND=postgres.",
     "store backend postgres": "Use STORE_BACKEND=postgres for a multi-worker hosted pilot.",
     "server tool token length": "Use a random SERVER_TOOL_TOKEN with at least 24 characters.",
@@ -66,19 +67,41 @@ function hasEnv(name: string) {
   return Boolean(process.env[name]?.trim());
 }
 
-function providerProofItems(): GoNoGoItem[] {
-  return [
-    {
+function schedulingProviderEnv(): "google" | "calcom" {
+  const raw = (process.env.SCHEDULING_PROVIDER || process.env.BOOKING_PROVIDER || "google").trim().toLowerCase();
+  return raw === "calcom" || raw === "cal.com" ? "calcom" : "google";
+}
+
+function schedulingProofItem(): GoNoGoItem {
+  if (schedulingProviderEnv() === "calcom") {
+    return {
       lane: "provider-proof",
       owner: "provider",
       severity: "proof",
-      name: "Google Calendar live booking smoke",
-      detail: "Confirmed-booking demos need a real create, find, and cleanup proof on the dedicated Tilda calendar.",
-      next: "Run only after service-account credentials and calendar sharing are configured for a safe dev or pilot calendar.",
-      command: "USE_FAKE_CALENDAR=false npm run live-calendar:smoke",
+      name: "Cal.com live booking smoke",
+      detail: "Cal.com scheduling demos need a real available-slot, create, get, and cancel proof against the approved test event type.",
+      next: "Run only after Cal.com API key and a safe test event type are configured; confirm the fixture was cancelled unless visible proof was explicitly requested.",
+      command: "npm run calcom:smoke",
       approvalRequired: true,
       sideEffect: "live-provider",
-    },
+    };
+  }
+  return {
+    lane: "provider-proof",
+    owner: "provider",
+    severity: "proof",
+    name: "Google Calendar live booking smoke",
+    detail: "Confirmed-booking demos need a real create, find, and cleanup proof on the dedicated Tilda calendar.",
+    next: "Run only after service-account credentials and calendar sharing are configured for a safe dev or pilot calendar.",
+    command: "USE_FAKE_CALENDAR=false npm run live-calendar:smoke",
+    approvalRequired: true,
+    sideEffect: "live-provider",
+  };
+}
+
+function providerProofItems(): GoNoGoItem[] {
+  return [
+    schedulingProofItem(),
     {
       lane: "provider-proof",
       owner: "provider",

@@ -25,6 +25,65 @@ function envEquals(name: string, value: string) {
   return process.env[name] === value;
 }
 
+function schedulingProviderEnv(): "google" | "calcom" | "unsupported" {
+  const raw = (process.env.SCHEDULING_PROVIDER || process.env.BOOKING_PROVIDER || "google").trim().toLowerCase();
+  if (raw === "calcom" || raw === "cal.com") return "calcom";
+  if (raw === "google" || raw === "google_calendar" || raw === "calendar") return "google";
+  return "unsupported";
+}
+
+function schedulingRuntimeCheck(): DeploymentCheck {
+  const provider = schedulingProviderEnv();
+  if (provider === "calcom") {
+    return {
+      name: "scheduling runtime provider",
+      ok: true,
+      severity: "blocker",
+      detail: "SCHEDULING_PROVIDER=calcom selected. Cal.com owns booking conflicts; USE_FAKE_CALENDAR is ignored for live scheduling but local fake-provider smokes remain separate.",
+    };
+  }
+  if (provider === "google") {
+    return {
+      name: "scheduling runtime provider",
+      ok: envEquals("USE_FAKE_CALENDAR", "false"),
+      severity: "blocker",
+      detail: "SCHEDULING_PROVIDER=google requires USE_FAKE_CALENDAR=false for live deployment. Fake calendar is only for no-credential demos and CI checks.",
+    };
+  }
+  return {
+    name: "scheduling runtime provider",
+    ok: false,
+    severity: "blocker",
+    detail: "SCHEDULING_PROVIDER must be google or calcom before live deployment.",
+  };
+}
+
+function schedulingLiveSmokeCheck(): DeploymentCheck {
+  const provider = schedulingProviderEnv();
+  if (provider === "calcom") {
+    return {
+      name: "scheduling live smoke proof",
+      ok: hasEnv("CALCOM_SMOKE_TESTED_AT"),
+      severity: "blocker",
+      detail: "Run npm run calcom:smoke against the approved Cal.com test event type, verify create/get/cancel cleanup, then set CALCOM_SMOKE_TESTED_AT to the proof timestamp in the hosted runtime.",
+    };
+  }
+  if (provider === "google") {
+    return {
+      name: "scheduling live smoke proof",
+      ok: hasEnv("GOOGLE_CALENDAR_SMOKE_TESTED_AT") || hasEnv("LIVE_CALENDAR_SMOKE_TESTED_AT"),
+      severity: "blocker",
+      detail: "Run USE_FAKE_CALENDAR=false npm run live-calendar:smoke against the approved dev/pilot calendar, verify fixture cleanup or visible-proof mode, then set LIVE_CALENDAR_SMOKE_TESTED_AT or GOOGLE_CALENDAR_SMOKE_TESTED_AT.",
+    };
+  }
+  return {
+    name: "scheduling live smoke proof",
+    ok: false,
+    severity: "blocker",
+    detail: "A live scheduling smoke proof is required after choosing SCHEDULING_PROVIDER=google or calcom.",
+  };
+}
+
 function checkFile(path: string): DeploymentCheck {
   return {
     name: `file:${path}`,
@@ -52,12 +111,8 @@ export function deploymentChecks(cfg: Client = loadClient()): DeploymentCheck[] 
       severity: "warning",
       detail: "CLIENT_FILE should point at clients/salon-demo.yaml for the current Tilda pilot demo.",
     },
-    {
-      name: "fake calendar disabled",
-      ok: envEquals("USE_FAKE_CALENDAR", "false"),
-      severity: "blocker",
-      detail: "USE_FAKE_CALENDAR=false is required for a live deployment. Fake calendar is only for no-credential demos and CI checks.",
-    },
+    schedulingRuntimeCheck(),
+    schedulingLiveSmokeCheck(),
     {
       name: "postgres database URL",
       ok: hasEnv("DATABASE_URL") || hasEnv("POSTGRES_URL"),

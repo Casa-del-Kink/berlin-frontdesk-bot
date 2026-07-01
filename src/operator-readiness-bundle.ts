@@ -30,7 +30,7 @@ const outputPath = process.env.OPERATOR_READINESS_BUNDLE_PATH || "tmp/tilda-ops-
 function ownerFor(check: DeploymentCheck): Owner {
   const name = check.name.toLowerCase();
   if (name.includes("owner alert")) return "operator";
-  if (name.includes("twilio") || name.includes("llm") || name.includes("calendar") || name.includes("google")) return "provider";
+  if (name.includes("twilio") || name.includes("llm") || name.includes("calendar") || name.includes("google") || name.includes("cal.com") || name.includes("calcom") || name.includes("scheduling")) return "provider";
   if (name.includes("retention") || name.includes("privacy") || name.includes("disclosure") || name.includes("avv") || name.includes("dpa")) return "compliance";
   return "engineering";
 }
@@ -41,11 +41,12 @@ function nextAction(check: DeploymentCheck): string {
     "twilio credentials": "Configure Twilio account/API credentials and WhatsApp sender in secret storage.",
     "reviewed follow-up send approval": "Keep ENABLE_REVIEWED_FOLLOWUP_SEND unset unless reviewed WhatsApp follow-up sending is approved, then set FOLLOWUP_SEND_REVIEWED_AT to the approval timestamp.",
     "llm provider": "Configure OPENROUTER_API_KEY in hosted secret storage.",
-    "calendar provider": "Set USE_FAKE_CALENDAR=false and configure Google service-account calendar access.",
+    "scheduling provider": "Configure the selected booking provider: Google Calendar service account or Cal.com API key plus event type selector.",
+    "scheduling runtime provider": "For Google, set USE_FAKE_CALENDAR=false. For Cal.com, keep fake-provider smokes separate from the hosted Cal.com runtime.",
+    "scheduling live smoke proof": "Run the selected provider smoke and set the matching proof timestamp after cleanup is verified.",
     "retention policy": "Set DATA_RETENTION_DAYS to the agreed first-pilot retention window and align it with the privacy notice.",
     "owner alert destination": "Configure ownerWhatsapp in the client YAML, or deliberately accept log-only alerts for an internal hosted demo.",
     "owner alert route tested": "Run the protected /operator/alert-test route and set OWNER_ALERT_TESTED_AT after delivery is confirmed.",
-    "fake calendar disabled": "Use fake calendar only for local demos. Disable it for approved live-provider demos or pilots.",
     "postgres database URL": "Set DATABASE_URL or POSTGRES_URL for STORE_BACKEND=postgres.",
     "store backend postgres": "Use STORE_BACKEND=postgres for a multi-worker hosted pilot.",
     "server tool token length": "Use a random SERVER_TOOL_TOKEN with at least 24 characters.",
@@ -136,6 +137,7 @@ function buildReport() {
     liveCommandsRequireApproval: [
       "npm run google-calendar:smoke",
       "USE_FAKE_CALENDAR=false npm run live-calendar:smoke",
+      "npm run calcom:smoke",
       "npm run supabase:postgres:smoke",
       "VOICE_AGENT_PUBLIC_BASE_URL=https://<public-host> SERVER_TOOL_TOKEN=*** VOICE_AGENT_CONTRACT_JSON=true npm run voice:contract",
     ],

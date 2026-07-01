@@ -52,6 +52,7 @@ function main() {
   assert(body.blockerCount > 0, `expected blockers: ${out.stdout}`);
   assert(Array.isArray(body.checks) && Array.isArray(body.blockers) && Array.isArray(body.warnings), `expected machine-readable check arrays: ${out.stdout}`);
   assert(body.checks.some((check: any) => check.name === "reviewed follow-up send approval" && check.ok === true), `reviewed follow-up sending should be safe by default: ${out.stdout}`);
+  assert(body.blockers.some((check: any) => check.name === "scheduling live smoke proof"), `live scheduling proof should block by default: ${out.stdout}`);
   assertNoSecretLeak(out.combined);
 
   out = run({ DEPLOYMENT_PREFLIGHT_JSON: "true", ALLOW_DEPLOYMENT_BLOCKERS: "true", ENABLE_REVIEWED_FOLLOWUP_SEND: "true" });
@@ -110,6 +111,32 @@ function main() {
   assert(
     body.checks.some((check: any) => check.name === "scheduling provider" && check.ok === true),
     `Cal.com API key plus slug and username should satisfy scheduling provider readiness: ${out.stdout}`,
+  );
+  assert(
+    body.checks.some((check: any) => check.name === "scheduling runtime provider" && check.ok === true && /calcom/.test(check.detail)),
+    `Cal.com deployment should not be blocked by USE_FAKE_CALENDAR: ${out.stdout}`,
+  );
+  assert(
+    body.blockers.some((check: any) => check.name === "scheduling live smoke proof" && /calcom:smoke/.test(check.detail)),
+    `Cal.com deployment should require Cal.com live smoke proof: ${out.stdout}`,
+  );
+
+  out = run({
+    DEPLOYMENT_PREFLIGHT_JSON: "true",
+    ALLOW_DEPLOYMENT_BLOCKERS: "true",
+    SCHEDULING_PROVIDER: "calcom",
+    CALCOM_API_KEY: "cal_test_preflight",
+    CALCOM_EVENT_TYPE_ID: "",
+    CALCOM_EVENT_TYPE_SLUG: "haircut",
+    CALCOM_USERNAME: "tilda-demo",
+    CALCOM_TEAM_SLUG: "",
+    CALCOM_SMOKE_TESTED_AT: "2026-07-01T08:00:00Z",
+  });
+  assert(out.status === 0, `Cal.com smoke-proof review mode should exit 0: ${out.combined}`);
+  body = parseJson(out.stdout);
+  assert(
+    body.checks.some((check: any) => check.name === "scheduling live smoke proof" && check.ok === true),
+    `CALCOM_SMOKE_TESTED_AT should satisfy live smoke proof: ${out.stdout}`,
   );
 
   writeFileSync(

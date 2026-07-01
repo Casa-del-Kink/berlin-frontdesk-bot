@@ -45,7 +45,7 @@ function main() {
   assert(body.proofCount >= 5, `expected live proof checklist items: ${out.stdout}`);
   assert(body.voiceContractMarker, `expected voice contract marker: ${out.stdout}`);
   assert(Array.isArray(body.items), `expected action items: ${out.stdout}`);
-  assert(body.items.some((item: any) => item.lane === "deployment" && item.name === "fake calendar disabled"), `expected deployment blocker: ${out.stdout}`);
+  assert(body.items.some((item: any) => item.lane === "deployment" && item.name === "scheduling runtime provider"), `expected scheduling runtime blocker: ${out.stdout}`);
   assert(body.items.some((item: any) => item.lane === "voice" && item.name === "public HTTPS base URL"), `expected voice blocker: ${out.stdout}`);
   assert(body.items.some((item: any) => item.lane === "provider-proof" && item.name === "Supabase Postgres store smoke"), `expected Supabase proof item: ${out.stdout}`);
   assert(body.items.some((item: any) => item.lane === "operator-proof" && item.name === "No-credential operator demo packet reviewed"), `expected operator proof review item: ${out.stdout}`);

@@ -2,6 +2,7 @@ import { spawn, spawnSync } from "node:child_process";
 import { existsSync, rmSync } from "node:fs";
 import { createRequire } from "node:module";
 import { setTimeout as sleep } from "node:timers/promises";
+import { DateTime } from "luxon";
 
 const PORT = Number(process.env.BATTLETEST_PORT || 4321);
 const BASE = `http://127.0.0.1:${PORT}`;
@@ -10,6 +11,9 @@ const STATE_FILE = "data/server-battletest-state.json";
 const CALENDAR_FILE = "data/server-battletest-calendar.json";
 const require = createRequire(import.meta.url);
 const TSX_CLI = require.resolve("tsx/cli");
+const FUTURE_BOOKING = DateTime.now().setZone("Europe/Berlin").plus({ days: 1 }).set({ hour: 10, minute: 0, second: 0, millisecond: 0 });
+const FUTURE_BOOKING_DATE = FUTURE_BOOKING.toISODate()!;
+const FUTURE_BOOKING_START = FUTURE_BOOKING.toISO()!;
 
 function removeIfExists(path: string) {
   if (existsSync(path)) rmSync(path);
@@ -71,7 +75,7 @@ function assertStrictStartupRequiresDeploymentReadiness() {
   const combined = `${result.stdout ?? ""}${result.stderr ?? ""}`;
   assert(result.status !== 0, "REQUIRE_LIVE_PILOT_READINESS=true should refuse startup while blockers remain");
   assert(combined.includes("Deployment readiness blockers"), `strict startup should print deployment blockers: ${combined}`);
-  assert(combined.includes("fake calendar disabled"), `strict startup should include fake-calendar blocker: ${combined}`);
+  assert(combined.includes("scheduling runtime provider"), `strict startup should include scheduling runtime blocker: ${combined}`);
   assert(combined.includes("store backend postgres"), `strict startup should include Postgres blocker: ${combined}`);
 }
 
@@ -143,8 +147,8 @@ async function main() {
       `readiness should flag scheduling provider: ${JSON.stringify(out.body)}`,
     );
     assert(
-      out.body.checks.some((check: any) => check.name === "fake calendar disabled" && check.ok === false),
-      `readiness should flag fake calendar deployment blocker: ${JSON.stringify(out.body)}`,
+      out.body.checks.some((check: any) => check.name === "scheduling runtime provider" && check.ok === false),
+      `readiness should flag scheduling runtime deployment blocker: ${JSON.stringify(out.body)}`,
     );
 
     out = await json("/metrics/today", { headers: { authorization: `Bearer ${TOKEN}` } });
@@ -173,7 +177,7 @@ async function main() {
 
     out = await json(
       "/tools/check_availability",
-      authJson({ phone: "whatsapp:+49100000001", args: { service: "Damenhaarschnitt", from: "2026-07-01", days: 3 } }),
+      authJson({ phone: "whatsapp:+491****0001", args: { service: "Damenhaarschnitt", from: FUTURE_BOOKING_DATE, days: 3 } }),
     );
     assert(out.res.ok, `availability failed: ${out.res.status} ${JSON.stringify(out.body)}`);
     assert(Array.isArray(out.body?.slots) && out.body.slots.length > 0, "availability should return slots");
@@ -182,7 +186,7 @@ async function main() {
       "/tools/book_appointment",
       authJson({
         phone: "whatsapp:+49100000001",
-        args: { name: "Battle Test", service: "Damenhaarschnitt", start: "2026-07-01T10:00:00+02:00", channel: "whatsapp" },
+        args: { name: "Battle Test", service: "Damenhaarschnitt", start: FUTURE_BOOKING_START, channel: "whatsapp" },
       }),
     );
     assert(out.res.ok, `booking failed: ${out.res.status} ${JSON.stringify(out.body)}`);
@@ -193,7 +197,7 @@ async function main() {
       "/tools/book_appointment",
       authJson({
         phone: "whatsapp:+491****0001",
-        args: { name: "Battle Test", service: "Damenhaarschnitt", start: "2026-07-01T10:00:00+02:00", channel: "whatsapp" },
+        args: { name: "Battle Test", service: "Damenhaarschnitt", start: FUTURE_BOOKING_START, channel: "whatsapp" },
       }),
     );
     assert(out.res.ok, `idempotent retry failed: ${out.res.status} ${JSON.stringify(out.body)}`);
@@ -203,7 +207,7 @@ async function main() {
       "/tools/book_appointment",
       authJson({
         phone: "whatsapp:+491****0002",
-        args: { name: "Double Test", service: "Damenhaarschnitt", start: "2026-07-01T10:00:00+02:00", channel: "phone" },
+        args: { name: "Double Test", service: "Damenhaarschnitt", start: FUTURE_BOOKING_START, channel: "phone" },
       }),
     );
     assert(out.res.ok, "double-book guard should return a handled tool error, not crash the endpoint");

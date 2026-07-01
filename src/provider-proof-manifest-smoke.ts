@@ -50,6 +50,7 @@ function main() {
   for (const id of [
     "google-calendar-readonly",
     "google-calendar-live-booking",
+    "calcom-live-booking",
     "supabase-postgres-store",
     "supabase-admin-rest",
     "twilio-whatsapp-signature",
@@ -66,6 +67,7 @@ function main() {
   assert(items.some((item) => item.id === "supabase-postgres-store" && item.expectedMarker === "POSTGRES_STORE_SMOKE_OK"), `expected Supabase Postgres marker: ${out.stdout}`);
   assert(items.some((item) => item.id === "elevenlabs-voice-agent-contract" && item.expectedMarker === "VOICE_AGENT_CONTRACT_OK"), `expected voice contract marker: ${out.stdout}`);
   assert(items.some((item) => item.id === "google-calendar-live-booking" && item.cleanupProof.includes("visible proof")), `expected visible-proof cleanup guidance: ${out.stdout}`);
+  assert(items.some((item) => item.id === "calcom-live-booking" && item.expectedMarker === "CALCOM_SMOKE_OK" && item.cleanupProof.includes("cancelled_booking_uid")), `expected Cal.com smoke cleanup guidance: ${out.stdout}`);
   assert(items.some((item) => item.id === "reviewed-whatsapp-followup-send" && item.sideEffect === "sends-provider-traffic"), `expected WhatsApp send traffic flag: ${out.stdout}`);
 
   console.log("PROVIDER_PROOF_MANIFEST_SMOKE_OK");
