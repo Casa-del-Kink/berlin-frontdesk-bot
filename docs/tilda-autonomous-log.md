@@ -326,3 +326,27 @@
   - Machine-readable packet mode reports `noLiveProviderCalls: true` and live commands that still require approval.
 - Blocker: no live Google Calendar, Supabase/Postgres, WhatsApp, or voice-provider checks were run. The packet is intentionally no-credential and writes only an ignored local handoff under `tmp/tilda-ops-snapshot/`.
 - Next chunk: add hosted deployment target examples or run live provider smokes only if approved credentials are configured and the fixture cleanup/visible-proof scope is explicit.
+
+## 2026-07-01T04:00:34Z hourly build loop
+
+- Branch: `main`
+- HEAD before: `237cf3b`
+- HEAD after: this local commit (see `git rev-parse HEAD` after commit)
+- Chunk selected: harden the no-credential operator demo packet for provider retry safety, so a repeated voice post-call webhook proves idempotent replay instead of duplicate call outcomes.
+- Files changed:
+  - `src/operator-demo-packet.ts`
+  - `docs/tilda-autonomous-log.md`
+- Commands run:
+  - `npm run operator:demo:packet` -> `OPERATOR_DEMO_PACKET_OK`, `steps: 11`, `voiceRetryIdempotent: true`, `exportedCallOutcomes: 1`
+  - `OPERATOR_DEMO_PACKET_JSON=true npm run operator:demo:packet` -> JSON marker `OPERATOR_DEMO_PACKET_OK`, `noLiveProviderCalls: true`
+  - `npm run typecheck` -> pass
+  - `npm run style:guard` -> `STYLE_GUARD_OK`
+  - `npm run secrets:scan` -> `SECRETS_SCAN_OK`
+  - `git diff --check` -> pass
+- Verification added:
+  - The packet now posts the same voice `callId` twice.
+  - First insert must report `idempotentReplay: false`.
+  - Provider retry must report `idempotentReplay: true`.
+  - Privacy export must still contain exactly one call outcome after retry.
+- Blocker: live Google Calendar, Supabase/Postgres, WhatsApp, and voice-provider smokes were not run in this no-credential loop.
+- Next chunk: add a hosted-demo provider-proof manifest that maps each live credential/env prerequisite to a safe smoke command and expected marker, without printing secrets.

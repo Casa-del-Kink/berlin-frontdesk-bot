@@ -96,7 +96,8 @@ function writePacket(report: ReturnType<typeof buildPacketReport>) {
     `- Readiness blockers: ${String(report.facts.readinessBlockers)}`,
     `- Follow-up dry-run sent: ${String(report.facts.followUpDryRunSent)}`,
     `- Live follow-up blocked status: ${String(report.facts.liveFollowUpBlockedStatus)}`,
-    `- Exported call outcomes: ${String(report.facts.exportedCallOutcomes)}`,
+    `- Voice retry idempotent replay: ${String(report.facts.voiceRetryIdempotent)}`,
+    `- Exported call outcomes after retry: ${String(report.facts.exportedCallOutcomes)}`,
     `- Output path: ${report.outputPath}`,
     "",
     "## Next live steps",
@@ -156,24 +157,29 @@ async function main() {
     assert(out.body?.ownerAlert?.attempted === false, `operator packet should stay log-only without owner destination: ${JSON.stringify(out.body)}`);
     steps.push({ name: "owner alert route", status: "ok", detail: "protected alert test executes in accepted log-only demo mode" });
 
-    out = await json(
-      "/webhook/voice/post-call",
-      authJson({
-        callId: "operator-packet-call-1",
-        phone: "+491****8801",
-        status: "needs_followup",
-        summary: "Caller wants colour advice before booking.",
-        customerName: "Mina",
-        requestedService: "Balayage",
-        preferredTime: "morgen Nachmittag",
-        missingInfo: "Welche Haarlänge hast du ungefähr?",
-      }),
-    );
+    const postCallPayload = {
+      callId: "operator-packet-call-1",
+      phone: "+491****8801",
+      status: "needs_followup",
+      summary: "Caller wants colour advice before booking.",
+      customerName: "Mina",
+      requestedService: "Balayage",
+      preferredTime: "morgen Nachmittag",
+      missingInfo: "Welche Haarlänge hast du ungefähr?",
+    };
+    out = await json("/webhook/voice/post-call", authJson(postCallPayload));
     assert(out.res.ok, `voice post-call packet failed: ${out.res.status} ${JSON.stringify(out.body)}`);
     assert(out.body?.followUpDraft?.reviewRequired === true, `post-call should return reviewed draft: ${JSON.stringify(out.body)}`);
     assert(out.body?.followUpDraft?.text?.includes("Welche Haarlänge hast du ungefähr?"), `draft should use typed missing info: ${JSON.stringify(out.body)}`);
+    assert(out.body?.idempotentReplay === false, `first post-call should be inserted, not replayed: ${JSON.stringify(out.body)}`);
     steps.push({ name: "voice post-call draft", status: "ok", detail: "typed call fields produce a reviewed WhatsApp follow-up draft" });
     const draftText = out.body.followUpDraft.text;
+
+    out = await json("/webhook/voice/post-call", authJson(postCallPayload));
+    assert(out.res.ok, `voice post-call retry failed: ${out.res.status} ${JSON.stringify(out.body)}`);
+    assert(out.body?.idempotentReplay === true, `provider retry should be reported as an idempotent replay: ${JSON.stringify(out.body)}`);
+    steps.push({ name: "voice post-call retry", status: "ok", detail: "duplicate provider call ID replays without duplicating the stored call outcome" });
+    const voiceRetryIdempotent = out.body.idempotentReplay;
 
     out = await json(
       "/operator/follow-up/send",
@@ -225,6 +231,7 @@ async function main() {
       readinessBlockers: readinessBody.blockers.length,
       followUpDryRunSent: dryRunBody.sent,
       liveFollowUpBlockedStatus,
+      voiceRetryIdempotent,
       exportedCallOutcomes: exportBody.callOutcomes.length,
     };
     const report = buildPacketReport(steps, facts);
