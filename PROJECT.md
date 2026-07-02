@@ -47,13 +47,28 @@ top** of what they already use.
 
 ## 4. Market & differentiation
 
-- The "AI receptionist" space is crowded **but voice-first and US-centric** ($25–300/mo:
-  Smith.ai, Goodcall, Trillet). Almost nobody is **WhatsApp-first**.
-- In Germany WhatsApp is the dominant messaging channel → **WhatsApp-first + German + GDPR +
-  local** is a real gap the US players don't cover.
+- The "AI receptionist" space is crowded. The US players ($25–300/mo: Smith.ai, Goodcall,
+  Trillet) are voice-first and don't cover DACH. **The reference competitor is fonio.ai**
+  (Vienna; $17M seed at $140M valuation, Jun 2026): German-first, GDPR-native (proprietary
+  EU stack, Nuremberg hosting), voice-first, **WhatsApp as a €79/mo add-on**, horizontal
+  across SMB verticals. Full intel + watch items: `wiki/competitors/2026-07-02-fonio-ai.md`.
+- The original gap thesis ("nobody does German + GDPR + local") is **dead** — fonio does.
+  The surviving gap: **WhatsApp-first + niche depth (beauty) + done-for-you local service**.
+  In Germany WhatsApp is the dominant messaging channel and fonio treats it as a bolt-on,
+  not the wedge.
+- Pricing implication: fonio Solo + WhatsApp ≈ €178/mo self-serve, no setup fee. Our
+  €250–400/mo + setup holds only as a **done-for-you service** (onboarding questionnaire,
+  owner edits on request, parallel-run, monthly ROI proof) — never sell Tilda as
+  self-serve software, and don't sell the generic "AI receptionist" category (that's
+  fonio's to win in DACH). Sell **missed-booking recovery**.
+- Don't fight fonio on infrastructure sovereignty (their own EU stack beats our
+  Twilio/ElevenLabs/OpenRouter assembly on paper). Neutralize compliance (DPAs,
+  EU-residency modes, per-client sub-accounts) and move the conversation to outcomes.
 - The bot itself is commoditized; the real differentiator = **local + GDPR-clean + the
   "business memory/context" layer** (the thread's "Claps" idea) with an **audit log** of which
   decision used which context. That's what earns trust after the demo. The `clients/*.yaml` is the seed.
+  fonio's documented weaknesses map onto this: integrations immature (calendar via Cal.com
+  until Jun 2026), no free trial (we do live demos), no per-business flow control.
 
 ## 5. GDPR / WhatsApp in Germany (critical)
 
@@ -196,6 +211,8 @@ your price covers all costs + margin and they get **one predictable invoice**. P
 
 ## Sources
 - AI receptionist market: answeringagent.com, agentzap.ai (2026 pricing).
+- Competitors: fonio.ai deep-dive (pricing, product, funding, weaknesses) —
+  `wiki/competitors/2026-07-02-fonio-ai.md` (Jul 2026, re-run quarterly).
 - Booking DE: salon.life, fresha.com (Fresha 20% vs Treatwell 35%).
 - Doctolib DE: doctolib.de, healthcare.digital.
 - GDPR/WhatsApp health: sendapp.live, hellomateo.de, chatarmin.com.
