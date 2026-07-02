@@ -145,18 +145,22 @@ async function main() {
     assert(out.res.ok, `authorized metrics failed: ${out.res.status}`);
     assert(out.body?.booked === 0, "fresh battletest state should start with 0 bookings");
 
+    // Dates must be computed, never hardcoded: a fixed start rots into
+    // "Cannot book a past time" the day after it's written.
+    const fromDate = new Date().toISOString().slice(0, 10);
     out = await json(
       "/tools/check_availability",
-      authJson({ phone: "whatsapp:+49100000001", args: { service: "Damenhaarschnitt", from: "2026-07-01", days: 3 } }),
+      authJson({ phone: "whatsapp:+49100000001", args: { service: "Damenhaarschnitt", from: fromDate, days: 3 } }),
     );
     assert(out.res.ok, `availability failed: ${out.res.status} ${JSON.stringify(out.body)}`);
     assert(Array.isArray(out.body?.slots) && out.body.slots.length > 0, "availability should return slots");
+    const bookingStart = out.body.slots[0].iso;
 
     out = await json(
       "/tools/book_appointment",
       authJson({
         phone: "whatsapp:+49100000001",
-        args: { name: "Battle Test", service: "Damenhaarschnitt", start: "2026-07-01T10:00:00+02:00", channel: "whatsapp" },
+        args: { name: "Battle Test", service: "Damenhaarschnitt", start: bookingStart, channel: "whatsapp" },
       }),
     );
     assert(out.res.ok, `booking failed: ${out.res.status} ${JSON.stringify(out.body)}`);
@@ -167,7 +171,7 @@ async function main() {
       "/tools/book_appointment",
       authJson({
         phone: "whatsapp:+491****0001",
-        args: { name: "Battle Test", service: "Damenhaarschnitt", start: "2026-07-01T10:00:00+02:00", channel: "whatsapp" },
+        args: { name: "Battle Test", service: "Damenhaarschnitt", start: bookingStart, channel: "whatsapp" },
       }),
     );
     assert(out.res.ok, `idempotent retry failed: ${out.res.status} ${JSON.stringify(out.body)}`);
@@ -177,7 +181,7 @@ async function main() {
       "/tools/book_appointment",
       authJson({
         phone: "whatsapp:+491****0002",
-        args: { name: "Double Test", service: "Damenhaarschnitt", start: "2026-07-01T10:00:00+02:00", channel: "phone" },
+        args: { name: "Double Test", service: "Damenhaarschnitt", start: bookingStart, channel: "phone" },
       }),
     );
     assert(out.res.ok, "double-book guard should return a handled tool error, not crash the endpoint");
