@@ -30,6 +30,7 @@ CHECK_FILES = [
     "src/fake-provider-demo.ts",
     "src/prompt.ts",
     "src/readiness.ts",
+    "src/server.ts",
 ]
 
 BANNED_LITERAL = [

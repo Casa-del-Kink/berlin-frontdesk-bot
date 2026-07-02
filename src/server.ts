@@ -6,21 +6,25 @@ import { loadClient, validateRuntimeEnv } from "./config.js";
 import { assertDeploymentReadiness, validateDeploymentReadiness } from "./readiness.js";
 import { buildSystemPrompt } from "./prompt.js";
 import { runConversation } from "./llm.js";
-import { toolDefs, makeHandlers, runTool } from "./tools.js";
+import { toolDefs, makeHandlers, runTool, findUnconfiguredPrices, handoffPauseHours } from "./tools.js";
 import {
   addCallOutcome,
   addMessage,
   callOutcomesOn,
+  clearConversationPause,
   deleteSubjectData,
   exportSubjectData,
+  getConversationPause,
   getHistory,
   getStoreBackend,
   leadsOn,
   metricsOn,
   purgeOldData,
+  setConversationPause,
   type CallOutcome,
 } from "./store.js";
 import { sendWhatsapp } from "./whatsapp.js";
+import { alertOwner as alertOwnerSafe } from "./owner-alerts.js";
 
 const cfg = loadClient();
 const app = express();
@@ -59,6 +63,15 @@ function validateToolRequest(req: express.Request) {
   return req.get("authorization") === `Bearer ${token}`;
 }
 
+// Owner-only operator actions (pause/resume, alert-test) use a distinct token when set, so the
+// voice-agent/server-tool token cannot drive operator actions. Falls back to SERVER_TOOL_TOKEN
+// behavior (including the existing unset=open local/demo semantics) when OPERATOR_TOKEN is unset.
+function validateOperatorRequest(req: express.Request) {
+  const token = process.env.OPERATOR_TOKEN || process.env.SERVER_TOOL_TOKEN;
+  if (!token) return true; // local/demo mode
+  return req.get("authorization") === `Bearer ${token}`;
+}
+
 function euros(cents: number) {
   return new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(cents / 100);
 }
@@ -86,8 +99,7 @@ function booleanBody(value: unknown) {
 }
 
 async function alertOwner(message: string) {
-  if (cfg.ownerWhatsapp) await sendWhatsapp(cfg.ownerWhatsapp, message);
-  else console.log(`[owner alert:DRYRUN] ${message}`);
+  await alertOwnerSafe(cfg, message);
 }
 
 // Shared "one brain" endpoint for WhatsApp, ElevenLabs server tools, or internal tests.
@@ -165,6 +177,41 @@ app.post("/privacy/retention/purge", async (req, res) => {
   }
 });
 
+// Operator-only human-handoff controls. Distinct OPERATOR_TOKEN auth (falls back to
+// SERVER_TOOL_TOKEN) so the voice-agent/server-tool token cannot pause/resume conversations
+// or trigger a real owner alert on its own.
+app.post("/operator/pause", async (req, res) => {
+  if (!validateOperatorRequest(req)) return res.status(401).json({ error: "Unauthorized" });
+  const phone = String(req.body?.phone || "").trim();
+  if (!phone) return res.status(400).json({ error: "Missing required phone" });
+  const hours = req.body?.hours === undefined ? handoffPauseHours() : Number(req.body.hours);
+  if (!Number.isFinite(hours) || hours <= 0) return res.status(400).json({ error: "hours must be a positive number" });
+  const pausedUntil = await setConversationPause(phone, hours);
+  res.json({ ok: true, phone, pausedUntil });
+});
+
+app.post("/operator/resume", async (req, res) => {
+  if (!validateOperatorRequest(req)) return res.status(401).json({ error: "Unauthorized" });
+  const phone = String(req.body?.phone || "").trim();
+  if (!phone) return res.status(400).json({ error: "Missing required phone" });
+  await clearConversationPause(phone);
+  res.json({ ok: true, phone });
+});
+
+// Operator smoke-test for the owner-alert path. Bearer-protected; goes through the same
+// fail-safe alertOwner used by real bookings/leads so operators can verify wiring before go-live.
+app.post("/operator/alert-test", async (req, res) => {
+  if (!validateOperatorRequest(req)) return res.status(401).json({ error: "Unauthorized" });
+  const message = String(req.body?.message || `Tilda alert test for ${cfg.name}`);
+  const result = await alertOwnerSafe(cfg, message.slice(0, 1000));
+  res.json({ ok: true, ownerAlert: result });
+});
+
+// Static bilingual reply sent while a conversation is paused for human handoff. The owner alert
+// already fired when the pause was set, so this path must not re-alert or call the LLM.
+const HANDOFF_PAUSE_REPLY =
+  "Eine Kollegin meldet sich gleich persönlich bei dir. / A colleague will get back to you personally in a moment.";
+
 // Inbound Twilio WhatsApp webhook.
 app.post("/webhook/whatsapp", async (req, res) => {
   if (!validateTwilioRequest(req)) return res.status(403).send("Invalid Twilio signature");
@@ -175,6 +222,17 @@ app.post("/webhook/whatsapp", async (req, res) => {
 
   if (!from || !body) return;
   try {
+    const pausedUntil = await getConversationPause(from);
+    if (pausedUntil) {
+      if (DateTime.fromISO(pausedUntil) > DateTime.now()) {
+        await addMessage(from, "user", body);
+        await addMessage(from, "assistant", HANDOFF_PAUSE_REPLY);
+        await sendWhatsapp(from, HANDOFF_PAUSE_REPLY);
+        return;
+      }
+      await clearConversationPause(from);
+    }
+
     await addMessage(from, "user", body);
     const history = (await getHistory(from)).slice(-12);
     const messages = [
@@ -182,6 +240,9 @@ app.post("/webhook/whatsapp", async (req, res) => {
       ...history.map((h) => ({ role: h.role, content: h.content })),
     ];
     const reply = await runConversation(messages, toolDefs, makeHandlers(cfg, from));
+    for (const price of findUnconfiguredPrices(reply, cfg)) {
+      console.log(`[guardrail] price token not in config: ${price}`);
+    }
     await addMessage(from, "assistant", reply);
     await sendWhatsapp(from, reply);
   } catch (e) {

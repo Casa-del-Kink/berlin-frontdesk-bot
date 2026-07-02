@@ -148,6 +148,13 @@ export function validateLivePilotReadiness(cfg?: Client): LivePilotReadiness {
       detail: "Set COMPLIANCE_DPA_REVIEWED=true only after AVV/DPA/subprocessor review for hosting, messaging, LLM, calendar, and voice vendors.",
     },
     {
+      name: "test fixtures absent",
+      ok: !hasEnv("CALCOM_TEST_ATTENDEE_EMAIL") && !hasEnv("CALCOM_KEEP_SMOKE_BOOKING") && !hasEnv("FORCE_WHATSAPP_SEND_FAILURE"),
+      severity: "blocker",
+      detail:
+        "CALCOM_TEST_ATTENDEE_EMAIL, CALCOM_KEEP_SMOKE_BOOKING, and FORCE_WHATSAPP_SEND_FAILURE are test-only fixtures. If any is set the runtime is fail-closed: unset it before a live deployment.",
+    },
+    {
       name: "subprocessor-by-subprocessor review for health-adjacent data",
       ok: cfg?.dataSensitivity !== "health" || process.env.COMPLIANCE_SUBPROCESSOR_REVIEW_COMPLETE === "true",
       severity: "blocker",

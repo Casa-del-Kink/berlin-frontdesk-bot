@@ -1,6 +1,12 @@
 import { spawn } from "node:child_process";
 import { existsSync, rmSync } from "node:fs";
+import { createRequire } from "node:module";
 import { setTimeout as sleep } from "node:timers/promises";
+
+// node_modules/.bin/tsx is a shell shim, not JS — running it via process.execPath
+// breaks on Windows. Resolve the real tsx CLI entry like server-battletest does.
+const require = createRequire(import.meta.url);
+const TSX_CLI = require.resolve("tsx/cli");
 
 const PORT = Number(process.env.VOICE_SMOKE_PORT || 4322);
 const BASE = `http://127.0.0.1:${PORT}`;
@@ -71,7 +77,7 @@ async function main() {
   removeIfExists(STATE_FILE);
   removeIfExists(CALENDAR_FILE);
 
-  const child = spawn(process.execPath, ["./node_modules/.bin/tsx", "src/server.ts"], {
+  const child = spawn(process.execPath, [TSX_CLI, "src/server.ts"], {
     env: {
       ...process.env,
       PORT: String(PORT),
@@ -111,7 +117,9 @@ async function main() {
     out = await json("/metrics/today", { headers: { authorization: "Bearer wrong-token" } });
     assert(out.res.status === 401, `voice metrics with wrong bearer should be 401: ${out.res.status} ${JSON.stringify(out.body)}`);
 
-    out = await json("/tools/check_availability", authJson({ phone: "+491****7001", args: { service: "Damenhaarschnitt", from: "2026-07-01", days: 3 } }));
+    // Computed date: a hardcoded from-date rots into a zero-future-slot window
+    // once the 3-day range passes (same regression class as the battletest fix).
+    out = await json("/tools/check_availability", authJson({ phone: "+491****7001", args: { service: "Damenhaarschnitt", from: new Date().toISOString().slice(0, 10), days: 3 } }));
     assert(out.res.ok, `voice availability failed: ${out.res.status} ${JSON.stringify(out.body)}`);
     assert(Array.isArray(out.body?.slots) && out.body.slots.length >= 2, `voice availability should return at least two slots: ${JSON.stringify(out.body)}`);
     const selectedSlot = out.body.slots[0].iso;

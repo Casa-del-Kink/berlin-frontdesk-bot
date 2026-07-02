@@ -41,16 +41,19 @@ model-portable: true
 
 | Suite | Command | Tag | Expected result | Last verified |
 |---|---|---|---|---|
-| Slot computation | `npm run check` | safe | tests free-slot logic, no creds | — (per README) |
-| Typecheck | `npm run typecheck` | safe | `tsc --noEmit` clean | — |
-| First-test smoke | `npm run first-test:smoke` | local-state | `FIRST_TEST_SMOKE_OK` | — (per README) |
-| Server battletest | `npm run server:battletest` | local-state | `SERVER_BATTLETEST_OK` | — (per README) |
-| Style guard | `npm run style:guard` | safe | Tilda voice/style check (python3) | — |
-| Postgres store smoke | `npm run postgres:smoke` | side-effecting | needs test `DATABASE_URL` | — |
-| Google Calendar smoke | `npm run google-calendar:smoke` | side-effecting | needs Google SA creds | — |
-| Live calendar booking | `npm run live-calendar:smoke` | side-effecting | writes a real calendar event | — |
-| Voice agent tool smoke | `npm run voice:smoke` | local-state | ElevenLabs server-tool path | — |
-| Supabase Postgres smoke | `npm run supabase:postgres:smoke` | side-effecting | bash + test DB | — |
+| Slot computation | `npm run check` | safe | tests free-slot logic, no creds (single 2-busy-block scenario only — not a broad gate) | 2026-07-02 ✓ |
+| Typecheck | `npm run typecheck` | safe | `tsc --noEmit` clean | 2026-07-02 ✓ |
+| First-test smoke | `npm run first-test:smoke` | local-state | `FIRST_TEST_SMOKE_OK` | 2026-07-02 ✓ |
+| Server battletest | `npm run server:battletest` | local-state | `SERVER_BATTLETEST_OK` | 2026-07-02 ✓ (after de-rotting hardcoded booking dates) |
+| Style guard | `npm run style:guard` | safe | Tilda voice/style check (python3; plain `python` works too) | 2026-07-02 ✓ (after fixing em dashes ff9905a introduced in deployment-readiness.md) |
+| Postgres store smoke | `npm run postgres:smoke` | side-effecting | needs test `DATABASE_URL` | — (credential-gated; Phase 3) |
+| Google Calendar smoke | `npm run google-calendar:smoke` | side-effecting | needs Google SA creds | — (credential-gated; Phase 3) |
+| Live calendar booking | `npm run live-calendar:smoke` | side-effecting | writes a real calendar event | — (credential-gated; Phase 3) |
+| Voice agent tool smoke | `npm run voice:smoke` | local-state | `VOICE_AGENT_TOOL_SMOKE_OK` | 2026-07-02 ✓ (after Windows fix: spawn tsx via require.resolve, not the .bin shell shim) |
+| Fake-provider demo | `npm run demo:fake` | safe | `DEMO_FAKE_HAIR_SALON_OK` | 2026-07-02 ✓ |
+| Deployment smoke | `npm run deployment:smoke` | local-state | `DEPLOYMENT_SMOKE_OK` | 2026-07-02 ✓ |
+| Deployment preflight | `npm run deployment:preflight` | safe | without live env: `DEPLOYMENT_PREFLIGHT_BLOCKED` (baseline 2026-07-02: 11 blockers / 4 warnings — an unexpected pass here means the gate broke) | 2026-07-02 ✓ expected-fail |
+| Supabase Postgres smoke | `npm run supabase:postgres:smoke` | side-effecting | bash + test DB | — (credential-gated; Phase 3) |
 
 ## Verify (what "green" means here)
 
