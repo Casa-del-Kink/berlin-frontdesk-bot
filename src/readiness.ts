@@ -152,7 +152,21 @@ export function deploymentChecks(cfg: Client = loadClient()): DeploymentCheck[] 
       severity: "blocker",
       detail: "TWILIO_WEBHOOK_BASE_URL must be the public HTTPS base URL used by Twilio signature validation.",
     },
+    voiceWebhookSecretCheck(),
   ];
+}
+
+function voiceConfigured(): boolean {
+  return hasEnv("VOICE_AGENT_PUBLIC_BASE_URL") || hasEnv("ELEVENLABS_AGENT_ID");
+}
+
+function voiceWebhookSecretCheck(): DeploymentCheck {
+  return {
+    name: "voice post-call webhook secret",
+    ok: !voiceConfigured() || hasEnv("ELEVENLABS_WEBHOOK_SECRET"),
+    severity: "warning",
+    detail: "Voice is configured (VOICE_AGENT_PUBLIC_BASE_URL or ELEVENLABS_AGENT_ID is set) but ELEVENLABS_WEBHOOK_SECRET is not. Real ElevenLabs post-call deliveries authenticate only via the elevenlabs-signature HMAC header (no bearer token is sent), so /webhook/voice/post-call cannot authenticate them until ELEVENLABS_WEBHOOK_SECRET is set.",
+  };
 }
 
 export function validateDeploymentReadiness(cfg: Client = loadClient()): DeploymentReadiness {
