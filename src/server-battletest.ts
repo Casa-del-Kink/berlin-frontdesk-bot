@@ -107,6 +107,19 @@ function assertPriceGuardrailPure() {
   const thousands = findUnconfiguredPrices("Das kostet 10.000,50 €.", cfg);
   assert(thousands.length === 1, `thousands-grouped amount should be flagged exactly once: ${JSON.stringify(thousands)}`);
   assert(thousands[0].includes("10.000,50"), `flagged token should preserve the full thousands-grouped amount, got: ${JSON.stringify(thousands)}`);
+
+  // Bare dot-decimal notation ("45.00€") must be parsed as the whole amount 45.00, not
+  // backtracked into a false partial match on its last two digits ("00€"). Configured case
+  // (45 configured) must NOT be flagged; unconfigured case must be flagged as "45.00", not "00".
+  const dotDecimalCfg = { services: [{ name: "Cut", durationMin: 30, price: "45 €" }] };
+  const dotDecimalClean = findUnconfiguredPrices("Ein Schnitt kostet 45.00€.", dotDecimalCfg);
+  assert(dotDecimalClean.length === 0, `dot-decimal amount matching a configured price should not be flagged: ${JSON.stringify(dotDecimalClean)}`);
+
+  const dotDecimalUnconfiguredCfg = { services: [{ name: "Cut", durationMin: 30, price: "30 €" }] };
+  const dotDecimalFlagged = findUnconfiguredPrices("Ein Schnitt kostet 45.00€.", dotDecimalUnconfiguredCfg);
+  assert(dotDecimalFlagged.length === 1, `unconfigured dot-decimal amount should be flagged exactly once: ${JSON.stringify(dotDecimalFlagged)}`);
+  assert(dotDecimalFlagged[0].includes("45.00"), `flagged token should be the full amount "45.00", not a partial match, got: ${JSON.stringify(dotDecimalFlagged)}`);
+  assert(!dotDecimalFlagged[0].startsWith("00"), `flagged token must not be a truncated partial match like "00€", got: ${JSON.stringify(dotDecimalFlagged)}`);
 }
 
 function assertDangerousEnvGuardFailsClosedWhenFixtureSet() {

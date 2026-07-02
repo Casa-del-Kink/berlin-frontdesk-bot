@@ -96,13 +96,20 @@ export function findUnconfiguredPrices(text: string, cfg: Pick<Client, "services
     cfg.services.map((s) => estimateServiceValueCents(s.price)).filter((v): v is number => v !== undefined),
   );
   // German-style amount: optional thousands groups separated by "." (e.g. "10.000"), optional
-  // ",dd" decimal (e.g. "10.000,50"). Matches plain "45" too. Thousands groups must be checked
-  // before a bare decimal so "10.000,50" isn't misparsed as "000,50".
-  const amount = /\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d+(?:,\d{1,2})?/.source;
+  // ",dd" decimal (e.g. "10.000,50"). Also accepts bare dot-decimal notation (e.g. "45.00").
+  // Alternatives are ordered longest-first so a full thousands-grouped or dot-decimal amount is
+  // matched whole, rather than the regex backtracking into a false partial match (e.g. "45.00"
+  // matching only its last two digits "00" if the bare-digit fallback were tried first).
+  const amount = /\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d+\.\d{2}|\d+(?:,\d{1,2})?/.source;
   const matches = text.matchAll(new RegExp(`(${amount})\\s*(?:€|EUR)|(?:€|EUR)\\s*(${amount})`, "gi"));
   const flagged: string[] = [];
   for (const m of matches) {
-    const raw = (m[1] ?? m[2] ?? "").replace(/\./g, "").replace(",", ".");
+    const token = m[1] ?? m[2] ?? "";
+    // Exactly one "." with exactly 2 trailing digits and no other "." groups = dot-decimal
+    // (e.g. "45.00"); anything else with a "." is thousands-grouping (e.g. "10.000",
+    // "10.000,50") where every "." is a grouping separator to strip.
+    const isDotDecimal = /^\d+\.\d{2}$/.test(token);
+    const raw = isDotDecimal ? token : token.replace(/\./g, "").replace(",", ".");
     const value = Number(raw);
     if (!Number.isFinite(value)) continue;
     const cents = Math.round(value * 100);
