@@ -8,11 +8,29 @@ export interface Service {
   price: string;
 }
 
+export interface CalcomEventTypeSelector {
+  eventTypeId?: number;
+  eventTypeSlug?: string;
+  username?: string;
+  teamSlug?: string;
+  organizationSlug?: string;
+  durationMin?: number;
+}
+
 export interface Client {
   name: string;
   timezone: string;
   language: string;
   calendarId: string;
+  /**
+   * Optional hosted Cal.com selectors for SCHEDULING_PROVIDER=calcom. Dormant by default -
+   * Google Calendar (via calendarId above) remains the booking engine unless SCHEDULING_PROVIDER
+   * is explicitly set to calcom. See src/scheduling.ts.
+   */
+  calcom?: {
+    defaultEventType?: CalcomEventTypeSelector;
+    services?: Record<string, CalcomEventTypeSelector>;
+  };
   ownerWhatsapp: string;
   bookingFallbackUrl?: string;
   consentText?: string;
@@ -72,6 +90,46 @@ function positiveNumberEnv(name: string) {
   return Number.isFinite(value) && value > 0;
 }
 
+function schedulingProviderEnv(): "google" | "calcom" | "unsupported" {
+  const raw = (process.env.SCHEDULING_PROVIDER || process.env.BOOKING_PROVIDER || "google").trim().toLowerCase();
+  if (raw === "calcom" || raw === "cal.com") return "calcom";
+  if (raw === "google" || raw === "google_calendar" || raw === "calendar") return "google";
+  return "unsupported";
+}
+
+function completeCalcomSelector(selector?: CalcomEventTypeSelector) {
+  if (!selector) return false;
+  if (Number.isFinite(selector.eventTypeId) && Number(selector.eventTypeId) > 0) return true;
+  return Boolean(selector.eventTypeSlug?.trim() && (selector.username?.trim() || selector.teamSlug?.trim()));
+}
+
+function envHasCompleteCalcomSelector() {
+  if (positiveNumberEnv("CALCOM_EVENT_TYPE_ID")) return true;
+  return hasEnv("CALCOM_EVENT_TYPE_SLUG") && (hasEnv("CALCOM_USERNAME") || hasEnv("CALCOM_TEAM_SLUG"));
+}
+
+function clientHasCompleteCalcomSelector(cfg?: Client) {
+  if (completeCalcomSelector(cfg?.calcom?.defaultEventType)) return true;
+  return Object.values(cfg?.calcom?.services ?? {}).some(completeCalcomSelector);
+}
+
+function schedulingProviderReady(cfg?: Client) {
+  const provider = schedulingProviderEnv();
+  if (provider === "unsupported") return false;
+  if (provider === "calcom") return hasEnv("CALCOM_API_KEY") && (envHasCompleteCalcomSelector() || clientHasCompleteCalcomSelector(cfg));
+  return hasEnv("GOOGLE_SA_JSON") && process.env.USE_FAKE_CALENDAR !== "true";
+}
+
+function schedulingProviderDetail(cfg?: Client) {
+  const provider = schedulingProviderEnv();
+  if (provider === "unsupported") return "SCHEDULING_PROVIDER must be google or calcom. Unsupported values fail before live booking.";
+  if (provider === "calcom") {
+    const source = clientHasCompleteCalcomSelector(cfg) ? "client YAML" : "environment";
+    return `SCHEDULING_PROVIDER=calcom requires CALCOM_API_KEY plus a complete Cal.com event type selector in ${source}: CALCOM_EVENT_TYPE_ID, or CALCOM_EVENT_TYPE_SLUG plus CALCOM_USERNAME/CALCOM_TEAM_SLUG. Cal.com must sync to the salon/demo Google Calendar.`;
+  }
+  return "SCHEDULING_PROVIDER=google requires GOOGLE_SA_JSON and USE_FAKE_CALENDAR must not be true for live booking.";
+}
+
 export function validateLivePilotReadiness(cfg?: Client): LivePilotReadiness {
   const storeBackend = process.env.STORE_BACKEND || "json";
   const gates: ReadinessGate[] = [
@@ -100,10 +158,10 @@ export function validateLivePilotReadiness(cfg?: Client): LivePilotReadiness {
       detail: "OPENROUTER_API_KEY is required before real customer conversations.",
     },
     {
-      name: "calendar provider",
-      ok: hasEnv("GOOGLE_SA_JSON") && process.env.USE_FAKE_CALENDAR !== "true",
+      name: "scheduling provider",
+      ok: schedulingProviderReady(cfg),
       severity: "blocker",
-      detail: "GOOGLE_SA_JSON must be set and USE_FAKE_CALENDAR must not be true for live booking.",
+      detail: schedulingProviderDetail(cfg),
     },
     {
       name: "retention policy",

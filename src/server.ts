@@ -25,6 +25,7 @@ import {
 } from "./store.js";
 import { sendWhatsapp } from "./whatsapp.js";
 import { alertOwner as alertOwnerSafe } from "./owner-alerts.js";
+import { schedulingProviderName } from "./scheduling.js";
 
 const cfg = loadClient();
 const app = express();
@@ -36,7 +37,9 @@ for (const warning of validateRuntimeEnv()) console.warn(`[config] ${warning}`);
 if (process.env.REQUIRE_LIVE_PILOT_READINESS === "true") assertDeploymentReadiness(cfg);
 
 app.get("/", (_req, res) => res.send(`OK - ${cfg.name}`));
-app.get("/health", (_req, res) => res.json({ ok: true, client: cfg.name, storeBackend: getStoreBackend().name, time: new Date().toISOString() }));
+app.get("/health", (_req, res) =>
+  res.json({ ok: true, client: cfg.name, storeBackend: getStoreBackend().name, schedulingProvider: schedulingProviderName(), time: new Date().toISOString() }),
+);
 app.get("/readiness/live-pilot", (req, res) => {
   if (!validateToolRequest(req)) return res.status(401).json({ error: "Unauthorized" });
   const readiness = validateDeploymentReadiness(cfg);

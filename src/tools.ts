@@ -1,8 +1,7 @@
-import { DateTime, Interval } from "luxon";
+import { DateTime } from "luxon";
 import type { Client } from "./config.js";
 import { findService } from "./config.js";
-import { createEvent, findEventByIdempotencyKey, findMatchingEvent, getBusy } from "./calendar.js";
-import { computeFreeSlots } from "./slots.js";
+import { getSchedulingProvider } from "./scheduling.js";
 import { addLead, bookedLead, leadByIdempotencyKey, setConversationPause, withBookingLock, type LeadChannel } from "./store.js";
 import { alertOwner } from "./owner-alerts.js";
 
@@ -63,11 +62,6 @@ export const toolDefs = [
 ];
 
 type Handler = (args: any) => Promise<unknown>;
-
-function overlapsBusy(busy: { start: string; end: string }[], start: DateTime, end: DateTime, tz: string) {
-  const requested = Interval.fromDateTimes(start, end);
-  return busy.some((b) => requested.overlaps(Interval.fromDateTimes(DateTime.fromISO(b.start).setZone(tz), DateTime.fromISO(b.end).setZone(tz))));
-}
 
 function normalizedChannel(channel: unknown, fallback: LeadChannel): LeadChannel {
   return channel === "whatsapp" || channel === "phone" || channel === "server_tool" || channel === "unknown" ? channel : fallback;
@@ -141,28 +135,23 @@ export function makeHandlers(cfg: Client, phone: string): Record<string, Handler
       const start = from ? DateTime.fromISO(from, { zone: tz }) : DateTime.now().setZone(tz);
       if (!start.isValid) return { error: "Invalid from date" };
       const windowDays = days ?? 7;
-      const to = start.plus({ days: windowDays });
 
-      const busy = await getBusy(cfg.calendarId, start.toUTC().toISO()!, to.toUTC().toISO()!);
-      const slots = computeFreeSlots({
-        busy,
+      const provider = getSchedulingProvider();
+      const slots = await provider.getAvailability({
+        cfg,
+        serviceName: svc?.name ?? service,
+        service: svc,
         from: start,
         days: windowDays,
-        openHHMM: cfg.hours.open,
-        closeHHMM: cfg.hours.close,
-        weekdays: cfg.hours.days,
         durationMin,
-        tz,
         max: 6,
       });
 
       return {
         service: svc?.name ?? service,
         durationMin,
-        slots: slots.map((s) => ({
-          iso: s.toISO(),
-          readable: s.toFormat("cccc d.LL. HH:mm"),
-        })),
+        schedulingProvider: provider.name,
+        slots,
         fallbackUrl: slots.length === 0 ? cfg.bookingFallbackUrl : undefined,
       };
     },
@@ -193,15 +182,28 @@ export function makeHandlers(cfg: Client, phone: string): Record<string, Handler
           };
         }
 
-        const summary = `${serviceName} - ${name}`;
-        const existingCalendarLink =
-          (await findEventByIdempotencyKey(cfg.calendarId, idempotencyKey)) ??
-          (await findMatchingEvent(cfg.calendarId, { summary, startISO: startDt.toISO()!, endISO: end.toISO()! }));
-        if (existingCalendarLink) {
+        const provider = getSchedulingProvider();
+        const bookingInput = {
+          cfg,
+          calendarId: cfg.calendarId,
+          customerName: name,
+          customerPhone: phone,
+          serviceName,
+          service: svc,
+          start: startDt,
+          end,
+          tz,
+          sourceChannel,
+          idempotencyKey,
+        };
+
+        const existingProviderLink = await provider.findExistingBooking(bookingInput);
+        if (existingProviderLink) {
           return {
             ok: true,
             when: startDt.toFormat("cccc d.LL. HH:mm"),
-            link: existingCalendarLink,
+            link: existingProviderLink,
+            schedulingProvider: provider.name,
             channel: sourceChannel,
             estimatedValueCents: estimateServiceValueCents(svc?.price),
             idempotencyKey,
@@ -209,23 +211,17 @@ export function makeHandlers(cfg: Client, phone: string): Record<string, Handler
           };
         }
 
-        // Re-check the exact requested interval inside the lock immediately before creating the event.
-        const busy = await getBusy(cfg.calendarId, startDt.toUTC().toISO()!, end.toUTC().toISO()!);
-        if (overlapsBusy(busy, startDt, end, tz)) {
+        // Re-check the exact requested interval inside the lock immediately before creating the booking.
+        const busy = await provider.isSlotBusy(bookingInput);
+        if (busy) {
           return {
             error: "Slot is no longer available",
             message: "That time was just taken. Please call check_availability again and offer fresh times.",
           };
         }
 
-        const link = await createEvent(cfg.calendarId, {
-          summary,
-          description: `Booked via ${sourceChannel} (${phone}). Idempotency-Key: ${idempotencyKey}`,
-          startISO: startDt.toISO()!,
-          endISO: end.toISO()!,
-          tz,
-          idempotencyKey,
-        });
+        const booked = await provider.createBooking(bookingInput);
+        const link = booked.link;
 
         const stored = await addLead({
           phone,
@@ -250,6 +246,8 @@ export function makeHandlers(cfg: Client, phone: string): Record<string, Handler
           ok: true,
           when: startDt.toFormat("cccc d.LL. HH:mm"),
           link,
+          schedulingProvider: booked.provider,
+          providerBookingId: booked.providerBookingId,
           channel: sourceChannel,
           estimatedValueCents: estimateServiceValueCents(svc?.price),
           idempotencyKey,
