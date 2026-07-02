@@ -95,10 +95,14 @@ export function findUnconfiguredPrices(text: string, cfg: Pick<Client, "services
   const configured = new Set(
     cfg.services.map((s) => estimateServiceValueCents(s.price)).filter((v): v is number => v !== undefined),
   );
-  const matches = text.matchAll(/(\d+(?:[.,]\d{1,2})?)\s*(?:€|EUR)|(?:€|EUR)\s*(\d+(?:[.,]\d{1,2})?)/gi);
+  // German-style amount: optional thousands groups separated by "." (e.g. "10.000"), optional
+  // ",dd" decimal (e.g. "10.000,50"). Matches plain "45" too. Thousands groups must be checked
+  // before a bare decimal so "10.000,50" isn't misparsed as "000,50".
+  const amount = /\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d+(?:,\d{1,2})?/.source;
+  const matches = text.matchAll(new RegExp(`(${amount})\\s*(?:€|EUR)|(?:€|EUR)\\s*(${amount})`, "gi"));
   const flagged: string[] = [];
   for (const m of matches) {
-    const raw = (m[1] ?? m[2] ?? "").replace(",", ".");
+    const raw = (m[1] ?? m[2] ?? "").replace(/\./g, "").replace(",", ".");
     const value = Number(raw);
     if (!Number.isFinite(value)) continue;
     const cents = Math.round(value * 100);
@@ -266,6 +270,11 @@ export function makeHandlers(cfg: Client, phone: string): Record<string, Handler
       if (stored.inserted) {
         await alertOwner(cfg, `Follow-up needed: ${name ?? "Unknown"} (${phone}) · ${serviceName ?? "unknown service"} · ${notes}`);
       }
+      // Unlike the alertOwner call above, this is NOT gated on stored.inserted: an idempotent
+      // replay of the same handoff request still re-extends pausedUntil. That is deliberate,
+      // not an oversight — the safe direction for a human-handoff pause is to stay silent
+      // longer, not to let a retried/duplicate handoff request silently shorten or skip the
+      // pause window.
       if (handoffRequested === true) {
         await setConversationPause(phone, handoffPauseHours());
       }

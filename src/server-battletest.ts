@@ -101,6 +101,12 @@ function assertPriceGuardrailPure() {
 
   const none = findUnconfiguredPrices("Wir haben morgen frei um 14:00.", cfg);
   assert(none.length === 0, `text without price tokens should not be flagged: ${JSON.stringify(none)}`);
+
+  // German thousands-grouped amount must be parsed as a whole number (10000.50), not
+  // misparsed from its last three digits ("000,50" -> 0.50).
+  const thousands = findUnconfiguredPrices("Das kostet 10.000,50 €.", cfg);
+  assert(thousands.length === 1, `thousands-grouped amount should be flagged exactly once: ${JSON.stringify(thousands)}`);
+  assert(thousands[0].includes("10.000,50"), `flagged token should preserve the full thousands-grouped amount, got: ${JSON.stringify(thousands)}`);
 }
 
 function assertDangerousEnvGuardFailsClosedWhenFixtureSet() {
