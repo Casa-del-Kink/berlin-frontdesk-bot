@@ -30,7 +30,8 @@
     "voice:contract:smoke": "tsx src/voice-agent-contract-smoke.ts",
     "voice:post-call:smoke": "tsx src/voice-post-call-smoke.ts",
     "voice:wire-agent": "tsx src/elevenlabs-wire-agent.ts",
-    "voice:wire-agent:smoke": "tsx src/elevenlabs-wire-agent-smoke.ts"
+    "voice:wire-agent:smoke": "tsx src/elevenlabs-wire-agent-smoke.ts",
+    "voice:post-call-auth:smoke": "tsx src/voice-post-call-auth-smoke.ts"
   },
   "dependencies": {
     "dotenv": "^16.4.5",
