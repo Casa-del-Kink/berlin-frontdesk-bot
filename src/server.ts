@@ -26,12 +26,23 @@ import { sendWhatsapp } from "./whatsapp.js";
 import { alertOwner as alertOwnerSafe } from "./owner-alerts.js";
 import { schedulingProviderName } from "./scheduling.js";
 import { normalizeVoicePostCallPayload } from "./voice-post-call.js";
+import { verifyElevenLabsSignature } from "./voice-post-call-auth.js";
+
+declare module "express-serve-static-core" {
+  interface Request {
+    rawBody?: Buffer;
+  }
+}
 
 const cfg = loadClient();
 const app = express();
 app.set("trust proxy", true);
 app.use(express.urlencoded({ extended: false }));
-app.use(express.json());
+// Captures the raw body bytes alongside the parsed JSON body, scoped to this app only (body
+// parsing behavior for every other route is unchanged). Needed so /webhook/voice/post-call can
+// verify the ElevenLabs HMAC signature, which is computed over the exact raw bytes ElevenLabs
+// sent, not a re-serialized copy of the parsed object.
+app.use(express.json({ verify: (req, _res, buf) => { (req as express.Request).rawBody = buf; } }));
 
 for (const warning of validateRuntimeEnv()) console.warn(`[config] ${warning}`);
 if (process.env.REQUIRE_LIVE_PILOT_READINESS === "true") assertDeploymentReadiness(cfg);
@@ -64,6 +75,23 @@ function validateToolRequest(req: express.Request) {
   const token = process.env.SERVER_TOOL_TOKEN;
   if (!token) return true; // local/demo mode
   return req.get("authorization") === `Bearer ${token}`;
+}
+
+// The post-call webhook accepts EITHER the existing bearer token (manual/local flows, smokes)
+// OR a valid ElevenLabs HMAC signature (real ElevenLabs deliveries, which never send a bearer
+// token because request_headers was not set when the workspace webhook was created). HMAC is only
+// attempted when ELEVENLABS_WEBHOOK_SECRET is set; when unset, behavior is exactly bearer-only,
+// with no regression for existing deployments that have not configured voice yet.
+function validateVoicePostCallRequest(req: express.Request): boolean {
+  if (validateToolRequest(req)) return true;
+
+  const secret = process.env.ELEVENLABS_WEBHOOK_SECRET;
+  if (!secret) return false;
+
+  const signatureHeader = req.get("elevenlabs-signature");
+  if (!signatureHeader || !req.rawBody) return false;
+
+  return verifyElevenLabsSignature(req.rawBody, signatureHeader, secret).ok;
 }
 
 // Owner-only operator actions (pause/resume, alert-test) use a distinct token when set, so the
@@ -124,7 +152,7 @@ app.get("/metrics/today", async (req, res) => {
 // normalizeVoicePostCallPayload accepts real ElevenLabs payload shapes (flat, data.*, data.analysis.*)
 // in addition to the flat fields this endpoint already accepted, so existing callers are unaffected.
 app.post("/webhook/voice/post-call", async (req, res) => {
-  if (!validateToolRequest(req)) return res.status(401).json({ error: "Unauthorized" });
+  if (!validateVoicePostCallRequest(req)) return res.status(401).json({ error: "Unauthorized" });
 
   const normalized = normalizeVoicePostCallPayload(req.body, {
     storeTranscriptUrl: process.env.VOICE_STORE_TRANSCRIPT_URLS === "true",
