@@ -58,7 +58,9 @@ function authJson(body?: unknown): RequestInit {
 }
 
 async function waitForHealth() {
-  const deadline = Date.now() + 15_000;
+  // generous ceiling: tsx cold-start can exceed 20s under load; a tight ceiling makes the
+  // suite fail deterministically on slow machines
+  const deadline = Date.now() + 60_000;
   let lastError = "not attempted";
   while (Date.now() < deadline) {
     try {

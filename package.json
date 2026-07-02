@@ -13,6 +13,7 @@
     "google-calendar:smoke": "tsx src/google-calendar-smoke.ts",
     "live-calendar:smoke": "tsx src/live-calendar-booking-smoke.ts",
     "postgres:smoke": "tsx src/postgres-store-smoke.ts",
+    "postgres:preflight": "tsx src/postgres-preflight.ts",
     "supabase:postgres:smoke": "bash scripts/supabase-postgres-smoke.sh",
     "supabase:admin:smoke": "tsx src/supabase-admin-smoke.ts",
     "server:battletest": "tsx src/server-battletest.ts",

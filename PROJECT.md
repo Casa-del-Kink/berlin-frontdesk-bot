@@ -88,7 +88,8 @@ Current planning conclusion:
 
 **Stack:** Node+TS · WhatsApp (Twilio sandbox → 360dialog) · **Voice: ElevenLabs Agents +
 Twilio (channel 2)** · LLM Claude via OpenRouter · booking via Google Calendar (link as
-fallback) · state in JSON (→ SQLite/Postgres when volume demands) · hosting Hetzner.
+fallback) · state in JSON (→ SQLite/Postgres when volume demands) · hosting Render
+(Frankfurt; decision record wiki/decisions/2026-07-01-render-hosting-frankfurt-standard.md).
 
 **Architecture principle: ONE brain, TWO channels.** Business logic (config + slots + booking
 + leads + store + summary) is exposed as **HTTP endpoints**. Both the WhatsApp bot (OpenRouter

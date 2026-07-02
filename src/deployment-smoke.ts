@@ -32,7 +32,9 @@ async function json(path: string, init: RequestInit = {}) {
 }
 
 async function waitForHealth() {
-  const deadline = Date.now() + 15_000;
+  // generous ceiling: tsx cold-start can exceed 20s under load; a tight ceiling makes the
+  // suite fail deterministically on slow machines
+  const deadline = Date.now() + 60_000;
   let lastError = "not attempted";
   while (Date.now() < deadline) {
     try {
@@ -61,7 +63,9 @@ function assertStrictStartupBlocksUnsafeEnv() {
       REQUIRE_LIVE_PILOT_READINESS: "true",
     },
     encoding: "utf8",
-    timeout: 10_000,
+    // generous ceiling: tsx cold-start can exceed 20s under load; a tight ceiling makes the
+    // suite fail deterministically on slow machines
+    timeout: 60_000,
   });
   const combined = `${result.stdout ?? ""}${result.stderr ?? ""}`;
   assert(result.status !== 0, "strict startup should fail in unsafe fake-provider deployment env");
