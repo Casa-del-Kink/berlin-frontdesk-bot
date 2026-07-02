@@ -177,7 +177,12 @@ function firstMessage(cfg: Client): string {
   return `Hallo, hier ist Tilda von ${cfg.name}. Ich bin die KI-Rezeption und helfe dir gern mit Terminen und Fragen.`;
 }
 
-async function upsertAgent(apiKey: string, prompt: string, toolIds: string[], publicBaseUrl: string, cfg: Client): Promise<string> {
+interface UpsertAgentResult {
+  agentId: string;
+  postCallWebhookCreated: boolean;
+}
+
+async function upsertAgent(apiKey: string, prompt: string, toolIds: string[], publicBaseUrl: string, cfg: Client): Promise<UpsertAgentResult> {
   const conversationConfig = {
     agent: {
       prompt: { prompt, tool_ids: toolIds },
@@ -192,8 +197,8 @@ async function upsertAgent(apiKey: string, prompt: string, toolIds: string[], pu
       method: "PATCH",
       body: JSON.stringify({ name: AGENT_NAME, conversation_config: conversationConfig }),
     });
-    await configurePostCallWebhook(apiKey, publicBaseUrl);
-    return existingId;
+    const postCallWebhookCreated = await configurePostCallWebhook(apiKey, publicBaseUrl);
+    return { agentId: existingId, postCallWebhookCreated };
   }
 
   const created = await elevenlabsFetch(apiKey, "/v1/convai/agents/create", {
@@ -202,8 +207,8 @@ async function upsertAgent(apiKey: string, prompt: string, toolIds: string[], pu
   });
   const agentId = created?.agent_id;
   if (!agentId) throw new WireAgentError("ElevenLabs agent creation response missing agent_id");
-  await configurePostCallWebhook(apiKey, publicBaseUrl);
-  return agentId;
+  const postCallWebhookCreated = await configurePostCallWebhook(apiKey, publicBaseUrl);
+  return { agentId, postCallWebhookCreated };
 }
 
 // Post-call delivery is workspace-level, not agent-level: a workspace webhook object is
@@ -219,9 +224,14 @@ async function findExistingWorkspaceWebhookId(apiKey: string, name: string): Pro
   return existing?.webhook_id;
 }
 
-async function upsertPostCallWebhook(apiKey: string, publicBaseUrl: string): Promise<string> {
+interface UpsertWebhookResult {
+  webhookId: string;
+  created: boolean;
+}
+
+async function upsertPostCallWebhook(apiKey: string, publicBaseUrl: string): Promise<UpsertWebhookResult> {
   const existingId = await findExistingWorkspaceWebhookId(apiKey, POST_CALL_WEBHOOK_NAME);
-  if (existingId) return existingId;
+  if (existingId) return { webhookId: existingId, created: false };
 
   const created = await elevenlabsFetch(apiKey, "/v1/workspace/webhooks", {
     method: "POST",
@@ -233,13 +243,16 @@ async function upsertPostCallWebhook(apiKey: string, publicBaseUrl: string): Pro
       },
     }),
   });
+  // The create response includes a webhook_secret (the HMAC signing secret). It is never read
+  // into a variable beyond this destructure and never logged or returned: it must be copied by a
+  // human from the ElevenLabs dashboard into ELEVENLABS_WEBHOOK_SECRET, not printed by this script.
   const webhookId = created?.webhook_id;
   if (!webhookId) throw new WireAgentError("ElevenLabs workspace webhook creation response missing webhook_id");
-  return webhookId;
+  return { webhookId, created: true };
 }
 
-async function configurePostCallWebhook(apiKey: string, publicBaseUrl: string): Promise<void> {
-  const webhookId = await upsertPostCallWebhook(apiKey, publicBaseUrl);
+async function configurePostCallWebhook(apiKey: string, publicBaseUrl: string): Promise<boolean> {
+  const { webhookId, created } = await upsertPostCallWebhook(apiKey, publicBaseUrl);
   await elevenlabsFetch(apiKey, "/v1/convai/settings", {
     method: "PATCH",
     body: JSON.stringify({
@@ -249,12 +262,14 @@ async function configurePostCallWebhook(apiKey: string, publicBaseUrl: string): 
       },
     }),
   });
+  return created;
 }
 
 export interface WireAgentSummary {
   agentId: string;
   toolIds: Record<string, string>;
   postCallWebhookUrl: string;
+  postCallWebhookCreated: boolean;
   secretName: string;
 }
 
@@ -271,12 +286,13 @@ export async function wireElevenLabsAgent(): Promise<WireAgentSummary> {
     toolIds[spec.name] = await upsertTool(env.apiKey, spec, env.publicBaseUrl, secretId);
   }
 
-  const agentId = await upsertAgent(env.apiKey, prompt, Object.values(toolIds), env.publicBaseUrl, cfg);
+  const { agentId, postCallWebhookCreated } = await upsertAgent(env.apiKey, prompt, Object.values(toolIds), env.publicBaseUrl, cfg);
 
   return {
     agentId,
     toolIds,
     postCallWebhookUrl: `${env.publicBaseUrl}/webhook/voice/post-call`,
+    postCallWebhookCreated,
     secretName: SECRET_NAME,
   };
 }
@@ -287,6 +303,11 @@ function printSummary(summary: WireAgentSummary) {
   for (const [name, id] of Object.entries(summary.toolIds)) console.log(`tool_id[${name}]=${id}`);
   console.log(`post_call_webhook=${summary.postCallWebhookUrl}`);
   console.log(`secret_name=${summary.secretName}`);
+  if (summary.postCallWebhookCreated) {
+    console.log(
+      "post-call webhook created; copy its HMAC secret from the ElevenLabs dashboard (Webhooks section) into the Render env as ELEVENLABS_WEBHOOK_SECRET, then redeploy",
+    );
+  }
   console.log("VOICE_WIRE_AGENT_OK");
 }
 

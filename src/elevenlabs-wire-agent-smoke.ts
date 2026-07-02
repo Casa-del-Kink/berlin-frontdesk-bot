@@ -237,6 +237,12 @@ async function main() {
     assert.equal(state.workspaceWebhooks[0].webhook_url, "https://tilda-demo.example.com/webhook/voice/post-call", "workspace webhook should point at the public base");
     assert.equal(state.workspaceWebhooks[0].auth_type, "hmac", "workspace webhook should use hmac auth");
     assert.equal(state.convaiSettings.webhooks?.post_call_webhook_id, state.workspaceWebhooks[0].webhook_id, "convai settings should reference the workspace webhook by id");
+
+    // First run creates the webhook, so it must print the copy-the-secret instruction (with no
+    // secret value); the mock's create response includes a webhook_secret that must never leak.
+    assert(first.stdout.includes("post-call webhook created"), `first run should print the copy-the-secret instruction: ${first.combined}`);
+    assert(first.stdout.includes("ELEVENLABS_WEBHOOK_SECRET"), `first run's instruction should name the target env var: ${first.combined}`);
+    assert(!first.combined.includes("whsec_"), "wire-agent output must never contain the mock webhook_secret value");
     assert.deepEqual(state.convaiSettings.webhooks?.events, ["transcript"], "convai settings should subscribe to the transcript event");
 
     // 3. Idempotent re-run: updates instead of duplicating.
@@ -251,6 +257,8 @@ async function main() {
     assert.equal(state.tools.length, 3, "re-run should update existing tools, not duplicate them");
     assert.equal(state.agents.length, 1, "re-run should update the existing agent, not duplicate it");
     assert.equal(state.workspaceWebhooks.length, 1, "re-run should reuse the existing workspace webhook, not duplicate it");
+    assert(!second.stdout.includes("post-call webhook created"), `re-run reuses the existing webhook, so it should not print the creation instruction: ${second.combined}`);
+    assert(!second.combined.includes("whsec_"), "wire-agent output must never contain the mock webhook_secret value, on any run");
 
     for (const req of captured) {
       if (typeof req.headers?.["xi-api-key"] === "string") {
