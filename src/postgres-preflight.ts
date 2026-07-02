@@ -19,6 +19,12 @@ async function main(): Promise<void> {
   const pool = new Pool({
     connectionString,
     ssl: process.env.PGSSL === "true" ? { rejectUnauthorized: false } : undefined,
+    // pg's default connectionTimeoutMillis is 0 (disabled). A refused connection fails fast on
+    // its own, but a black-holed network path (firewall silently dropping packets, not
+    // rejecting) waits on the OS TCP stack instead -- tens of seconds, worse on some hosts.
+    // Bound it so fail-closed is deterministic regardless of how the failure manifests.
+    connectionTimeoutMillis: 10_000,
+    statement_timeout: 10_000,
   });
 
   try {
