@@ -1,7 +1,8 @@
 ---
 kind: learnings
 authority: evidence
-updated: 2026-06-29
+source-role: append-only-observations
+updated: 2026-07-02
 ---
 
 # Learnings — berlin-frontdesk-bot (Tilda)

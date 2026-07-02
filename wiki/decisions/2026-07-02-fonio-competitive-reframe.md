@@ -1,6 +1,7 @@
 ---
 id: 2026-07-02-fonio-competitive-reframe
 status: current
+source-role: decision
 supersedes: none
 date: 2026-07-02
 owner: none

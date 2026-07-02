@@ -1,6 +1,7 @@
 ---
 id: 2026-07-01-subprocessor-review-triggers
 status: current
+source-role: decision
 supersedes: none
 date: 2026-07-01
 owner: none
