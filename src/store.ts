@@ -64,6 +64,7 @@ export interface SubjectDataExport {
   conversations: Msg[];
   leads: Lead[];
   callOutcomes: CallOutcome[];
+  pausedUntil?: string;
 }
 
 export interface SubjectDataDeletion {
@@ -85,6 +86,7 @@ interface State {
   conversations: Record<string, Msg[]>;
   leads: Lead[];
   callOutcomes: CallOutcome[];
+  pauses: Record<string, string>; // phone -> pausedUntil ISO
 }
 
 type MaybePromise<T> = T | Promise<T>;
@@ -104,11 +106,14 @@ export interface StoreBackend {
   purgeOldData(maxAgeDays: number, dryRun?: boolean): MaybePromise<RetentionPurgeResult>;
   deleteSubjectData(phone: string): MaybePromise<SubjectDataDeletion>;
   withBookingLock<T>(key: string, fn: () => Promise<T>): Promise<T>;
+  setConversationPause(phone: string, hours: number): MaybePromise<string>;
+  clearConversationPause(phone: string): MaybePromise<void>;
+  getConversationPause(phone: string): MaybePromise<string | undefined>;
 }
 
 class JsonStoreBackend implements StoreBackend {
   readonly name = "json" as const;
-  private state: State = { conversations: {}, leads: [], callOutcomes: [] };
+  private state: State = { conversations: {}, leads: [], callOutcomes: [], pauses: {} };
   private readonly file = process.env.STATE_FILE || "data/state.json";
   private readonly maxHistoryPerPhone = Number(process.env.MAX_HISTORY_PER_PHONE || 50);
   private readonly inProcessLocks = new Map<string, Promise<unknown>>();
@@ -116,7 +121,12 @@ class JsonStoreBackend implements StoreBackend {
   constructor() {
     if (existsSync(this.file)) {
       const loaded = JSON.parse(readFileSync(this.file, "utf8")) as Partial<State>;
-      this.state = { conversations: loaded.conversations ?? {}, leads: loaded.leads ?? [], callOutcomes: loaded.callOutcomes ?? [] };
+      this.state = {
+        conversations: loaded.conversations ?? {},
+        leads: loaded.leads ?? [],
+        callOutcomes: loaded.callOutcomes ?? [],
+        pauses: loaded.pauses ?? {},
+      };
     }
   }
 
@@ -182,6 +192,7 @@ class JsonStoreBackend implements StoreBackend {
       conversations: [...(this.state.conversations[phone] ?? [])],
       leads: this.state.leads.filter((lead) => lead.phone === phone),
       callOutcomes: this.state.callOutcomes.filter((call) => call.phone === phone),
+      pausedUntil: this.state.pauses[phone],
     };
   }
 
@@ -230,7 +241,10 @@ class JsonStoreBackend implements StoreBackend {
     this.state.callOutcomes = this.state.callOutcomes.filter((call) => call.phone !== phone);
     const callOutcomesDeleted = callsBefore - this.state.callOutcomes.length;
 
-    if (conversationsDeleted > 0 || leadsDeleted > 0 || callOutcomesDeleted > 0) this.persist();
+    const hadPause = phone in this.state.pauses;
+    delete this.state.pauses[phone];
+
+    if (conversationsDeleted > 0 || leadsDeleted > 0 || callOutcomesDeleted > 0 || hadPause) this.persist();
     return { phone, conversationsDeleted, leadsDeleted, callOutcomesDeleted };
   }
 
@@ -254,6 +268,24 @@ class JsonStoreBackend implements StoreBackend {
       release();
       if (this.inProcessLocks.get(key) === chained) this.inProcessLocks.delete(key);
     }
+  }
+
+  setConversationPause(phone: string, hours: number): string {
+    const pausedUntil = DateTime.now().plus({ hours }).toISO()!;
+    this.state.pauses[phone] = pausedUntil;
+    this.persist();
+    return pausedUntil;
+  }
+
+  clearConversationPause(phone: string): void {
+    if (phone in this.state.pauses) {
+      delete this.state.pauses[phone];
+      this.persist();
+    }
+  }
+
+  getConversationPause(phone: string): string | undefined {
+    return this.state.pauses[phone];
   }
 
   private persist() {
@@ -421,7 +453,7 @@ class PostgresStoreBackend implements StoreBackend {
 
   async exportSubjectData(phone: string): Promise<SubjectDataExport> {
     await this.ready;
-    const [messages, leads, calls] = await Promise.all([
+    const [messages, leads, calls, pausedUntil] = await Promise.all([
       this.getHistory(phone),
       this.pool.query<DbLeadRow>(
         `select phone, name, service, status, channel, notes, start_iso, estimated_value_cents, idempotency_key, created_at
@@ -433,8 +465,9 @@ class PostgresStoreBackend implements StoreBackend {
          from call_outcomes where phone = $1 order by created_at asc`,
         [phone],
       ),
+      this.getConversationPause(phone),
     ]);
-    return { phone, conversations: messages, leads: leads.rows.map(leadFromRow), callOutcomes: calls.rows.map(callFromRow) };
+    return { phone, conversations: messages, leads: leads.rows.map(leadFromRow), callOutcomes: calls.rows.map(callFromRow), pausedUntil };
   }
 
   async purgeOldData(maxAgeDays: number, dryRun = false): Promise<RetentionPurgeResult> {
@@ -477,6 +510,7 @@ class PostgresStoreBackend implements StoreBackend {
       const conversations = await client.query(`delete from conversations where phone = $1`, [phone]);
       const leads = await client.query(`delete from leads where phone = $1`, [phone]);
       const calls = await client.query(`delete from call_outcomes where phone = $1`, [phone]);
+      await client.query(`delete from conversation_pauses where phone = $1`, [phone]);
       await client.query("commit");
       return { phone, conversationsDeleted: conversations.rowCount ?? 0, leadsDeleted: leads.rowCount ?? 0, callOutcomesDeleted: calls.rowCount ?? 0 };
     } catch (e) {
@@ -485,6 +519,32 @@ class PostgresStoreBackend implements StoreBackend {
     } finally {
       client.release();
     }
+  }
+
+  async setConversationPause(phone: string, hours: number): Promise<string> {
+    await this.ready;
+    const result = await this.pool.query<{ paused_until: Date | string }>(
+      `insert into conversation_pauses (phone, paused_until)
+       values ($1, now() + ($2::text || ' hours')::interval)
+       on conflict (phone) do update set paused_until = excluded.paused_until
+       returning paused_until`,
+      [phone, String(hours)],
+    );
+    return iso(result.rows[0].paused_until);
+  }
+
+  async clearConversationPause(phone: string): Promise<void> {
+    await this.ready;
+    await this.pool.query(`delete from conversation_pauses where phone = $1`, [phone]);
+  }
+
+  async getConversationPause(phone: string): Promise<string | undefined> {
+    await this.ready;
+    const result = await this.pool.query<{ paused_until: Date | string }>(
+      `select paused_until from conversation_pauses where phone = $1`,
+      [phone],
+    );
+    return result.rows[0] ? iso(result.rows[0].paused_until) : undefined;
   }
 
   async withBookingLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
@@ -546,6 +606,11 @@ class PostgresStoreBackend implements StoreBackend {
       );
       create index if not exists call_outcomes_phone_idx on call_outcomes (phone);
       create index if not exists call_outcomes_created_at_idx on call_outcomes (created_at);
+
+      create table if not exists conversation_pauses (
+        phone text primary key,
+        paused_until timestamptz not null
+      );
     `);
   }
 }
@@ -678,4 +743,16 @@ export async function deleteSubjectData(phone: string): Promise<SubjectDataDelet
 
 export async function withBookingLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
   return store.withBookingLock(key, fn);
+}
+
+export async function setConversationPause(phone: string, hours: number): Promise<string> {
+  return store.setConversationPause(phone, hours);
+}
+
+export async function clearConversationPause(phone: string): Promise<void> {
+  return store.clearConversationPause(phone);
+}
+
+export async function getConversationPause(phone: string): Promise<string | undefined> {
+  return store.getConversationPause(phone);
 }

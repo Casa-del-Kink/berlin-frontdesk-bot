@@ -3,8 +3,8 @@ import type { Client } from "./config.js";
 import { findService } from "./config.js";
 import { createEvent, findEventByIdempotencyKey, findMatchingEvent, getBusy } from "./calendar.js";
 import { computeFreeSlots } from "./slots.js";
-import { addLead, bookedLead, leadByIdempotencyKey, withBookingLock, type LeadChannel } from "./store.js";
-import { sendWhatsapp } from "./whatsapp.js";
+import { addLead, bookedLead, leadByIdempotencyKey, setConversationPause, withBookingLock, type LeadChannel } from "./store.js";
+import { alertOwner } from "./owner-alerts.js";
 
 // Tool definitions in OpenAI format (compatible with OpenRouter).
 export const toolDefs = [
@@ -54,6 +54,7 @@ export const toolDefs = [
           notes: { type: "string", description: "Short summary of what the customer wants" },
           channel: { type: "string", enum: ["whatsapp", "phone", "server_tool", "unknown"], description: "Where the inquiry came from" },
           idempotencyKey: { type: "string", description: "Optional stable provider/request key. Reusing it makes lead registration safe to retry." },
+          handoffRequested: { type: "boolean", description: "true when the customer explicitly asks for a human / the owner" },
         },
         required: ["notes"],
       },
@@ -68,13 +69,14 @@ function overlapsBusy(busy: { start: string; end: string }[], start: DateTime, e
   return busy.some((b) => requested.overlaps(Interval.fromDateTimes(DateTime.fromISO(b.start).setZone(tz), DateTime.fromISO(b.end).setZone(tz))));
 }
 
-async function alertOwner(cfg: Client, message: string) {
-  if (cfg.ownerWhatsapp) await sendWhatsapp(cfg.ownerWhatsapp, message);
-  else console.log(`[owner alert:DRYRUN] ${message}`);
-}
-
 function normalizedChannel(channel: unknown, fallback: LeadChannel): LeadChannel {
   return channel === "whatsapp" || channel === "phone" || channel === "server_tool" || channel === "unknown" ? channel : fallback;
+}
+
+/** Default 4h human-handoff pause window, overridable via HANDOFF_PAUSE_HOURS (must be positive). */
+export function handoffPauseHours(): number {
+  const value = Number(process.env.HANDOFF_PAUSE_HOURS);
+  return Number.isFinite(value) && value > 0 ? value : 4;
 }
 
 export function estimateServiceValueCents(price?: string): number | undefined {
@@ -82,6 +84,27 @@ export function estimateServiceValueCents(price?: string): number | undefined {
   const match = price.replace(",", ".").match(/(\d+(?:\.\d{1,2})?)/);
   if (!match) return undefined;
   return Math.round(Number(match[1]) * 100);
+}
+
+/**
+ * Cheap price guardrail. Scans reply text for euro-shaped amounts and flags any that don't
+ * match a configured service price. Pure and side-effect free so it is unit-testable without
+ * spinning up the LLM loop; the webhook wires this in as a log-only, non-blocking check.
+ */
+export function findUnconfiguredPrices(text: string, cfg: Pick<Client, "services">): string[] {
+  const configured = new Set(
+    cfg.services.map((s) => estimateServiceValueCents(s.price)).filter((v): v is number => v !== undefined),
+  );
+  const matches = text.matchAll(/(\d+(?:[.,]\d{1,2})?)\s*(?:€|EUR)|(?:€|EUR)\s*(\d+(?:[.,]\d{1,2})?)/gi);
+  const flagged: string[] = [];
+  for (const m of matches) {
+    const raw = (m[1] ?? m[2] ?? "").replace(",", ".");
+    const value = Number(raw);
+    if (!Number.isFinite(value)) continue;
+    const cents = Math.round(value * 100);
+    if (!configured.has(cents)) flagged.push(m[0].trim());
+  }
+  return flagged;
 }
 
 function safeKeyPart(value: string) {
@@ -224,7 +247,7 @@ export function makeHandlers(cfg: Client, phone: string): Record<string, Handler
       });
     },
 
-    async register_lead({ name, service, notes, channel, idempotencyKey }) {
+    async register_lead({ name, service, notes, channel, idempotencyKey, handoffRequested }) {
       const svc = findService(cfg, service);
       const sourceChannel = normalizedChannel(channel, phone.startsWith("whatsapp:") ? "whatsapp" : "server_tool");
       const serviceName = svc?.name ?? service;
@@ -243,12 +266,16 @@ export function makeHandlers(cfg: Client, phone: string): Record<string, Handler
       if (stored.inserted) {
         await alertOwner(cfg, `Follow-up needed: ${name ?? "Unknown"} (${phone}) · ${serviceName ?? "unknown service"} · ${notes}`);
       }
+      if (handoffRequested === true) {
+        await setConversationPause(phone, handoffPauseHours());
+      }
       return {
         ok: true,
         channel: stored.lead.channel ?? sourceChannel,
         estimatedValueCents: stored.lead.estimatedValueCents,
         idempotencyKey: stableKey,
         idempotentReplay: !stored.inserted,
+        handoff: handoffRequested === true,
       };
     },
   };
