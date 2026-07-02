@@ -27,10 +27,16 @@ CHECK_FILES = [
     "docs/voice-phone-readiness.md",
     "src/deployment-preflight.ts",
     "src/deployment-smoke.ts",
+    "src/elevenlabs-agent-contract.ts",
+    "src/elevenlabs-wire-agent.ts",
+    "src/elevenlabs-wire-agent-smoke.ts",
     "src/fake-provider-demo.ts",
     "src/prompt.ts",
     "src/readiness.ts",
     "src/server.ts",
+    "src/voice-agent-contract-smoke.ts",
+    "src/voice-post-call.ts",
+    "src/voice-post-call-smoke.ts",
 ]
 
 BANNED_LITERAL = [
