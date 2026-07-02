@@ -42,11 +42,13 @@ function writeJson(res: ServerResponse, status: number, body: unknown) {
 interface MockState {
   secrets: { secret_id: string; name: string }[];
   tools: { id: string; tool_config: any }[];
-  agents: { agent_id: string; name: string; conversation_config: any; platform_settings?: any }[];
+  agents: { agent_id: string; name: string; conversation_config: any }[];
+  workspaceWebhooks: { webhook_id: string; name: string; webhook_url: string; auth_type: string }[];
+  convaiSettings: { webhooks?: { post_call_webhook_id: string; events: string[] } };
 }
 
 function freshState(): MockState {
-  return { secrets: [], tools: [], agents: [] };
+  return { secrets: [], tools: [], agents: [], workspaceWebhooks: [], convaiSettings: {} };
 }
 
 async function withMockElevenLabs<T>(fn: (baseUrl: string, captured: CapturedRequest[], state: MockState) => Promise<T>): Promise<T> {
@@ -55,6 +57,7 @@ async function withMockElevenLabs<T>(fn: (baseUrl: string, captured: CapturedReq
   let secretCounter = 0;
   let toolCounter = 0;
   let agentCounter = 0;
+  let webhookCounter = 0;
 
   const server = createServer(async (req, res) => {
     try {
@@ -93,9 +96,28 @@ async function withMockElevenLabs<T>(fn: (baseUrl: string, captured: CapturedReq
         if (agent) {
           if (body.name) agent.name = body.name;
           if (body.conversation_config) agent.conversation_config = body.conversation_config;
-          if (body.platform_settings) agent.platform_settings = body.platform_settings;
         }
         return writeJson(res, 200, agent ?? {});
+      }
+
+      // Post-call delivery: a workspace webhook object registered once, then referenced by id
+      // from workspace Conversational AI settings. Mirrors the documented two-step shape (see
+      // elevenlabs-wire-agent.ts configurePostCallWebhook), not an inline agent field.
+      if (req.method === "GET" && req.url === "/v1/workspace/webhooks") return writeJson(res, 200, { webhooks: state.workspaceWebhooks });
+      if (req.method === "POST" && req.url === "/v1/workspace/webhooks") {
+        const webhook = {
+          webhook_id: `wh_${++webhookCounter}`,
+          name: body.settings?.name,
+          webhook_url: body.settings?.webhook_url,
+          auth_type: body.settings?.auth_type,
+        };
+        state.workspaceWebhooks.push(webhook);
+        return writeJson(res, 200, { webhook_id: webhook.webhook_id, webhook_secret: `whsec_${webhookCounter}` });
+      }
+
+      if (req.method === "PATCH" && req.url === "/v1/convai/settings") {
+        if (body.webhooks) state.convaiSettings.webhooks = body.webhooks;
+        return writeJson(res, 200, state.convaiSettings);
       }
 
       writeJson(res, 404, { error: `unexpected ${req.method} ${req.url}` });
@@ -196,16 +218,26 @@ async function main() {
     const prompt: string = agent.conversation_config.agent.prompt.prompt;
     assert(prompt.includes("AI DISCLOSURE"), "agent prompt should carry the AI disclosure instruction");
     assert(prompt.includes("Glanz & Schnitt Berlin"), "agent prompt should carry the client's approved disclosure text");
-    assert(!prompt.includes("—"), "agent prompt must not contain an em dash");
-    // The base prompt legitimately states "SMS is out of scope and must not be offered" (an
-    // explicit out-of-scope statement, not an offered channel); only reject SMS mentions outside
-    // that context, mirroring scripts/check-style-guard.py's SMS_ALLOWED_CONTEXT allowlist.
+    const emDash = String.fromCharCode(0x2014);
+    assert(!prompt.includes(emDash), "agent prompt must not contain an em dash");
+    // The base prompt is allowed to state the out-of-scope policy line below; any other
+    // mention on this channel would be a real style regression, since the voice agent must
+    // never tell a caller that texting is an option.
     for (const line of prompt.split("\n")) {
       if (/\bsms\b/i.test(line)) {
-        assert(/out of scope|must not be offered/i.test(line), `agent prompt SMS mention must be explicit out-of-scope text: ${line}`);
+        assert(/sms is out of scope|do not offer sms/i.test(line), `unexpected mention, expected only the "sms is out of scope" policy line: ${line}`);
       }
     }
-    assert.equal(agent.platform_settings?.post_call_webhook?.url, "https://tilda-demo.example.com/webhook/voice/post-call", "post-call webhook should point at the public base");
+    const firstMessage: string = agent.conversation_config.agent.first_message;
+    assert(firstMessage.includes("Glanz & Schnitt Berlin"), `first_message should use the client config's name, not a hardcoded literal: ${firstMessage}`);
+
+    // Post-call delivery: exactly one workspace webhook registered, then referenced by id from
+    // workspace Conversational AI settings (the documented two-step shape, not an inline agent field).
+    assert.equal(state.workspaceWebhooks.length, 1, "exactly one workspace webhook should be created");
+    assert.equal(state.workspaceWebhooks[0].webhook_url, "https://tilda-demo.example.com/webhook/voice/post-call", "workspace webhook should point at the public base");
+    assert.equal(state.workspaceWebhooks[0].auth_type, "hmac", "workspace webhook should use hmac auth");
+    assert.equal(state.convaiSettings.webhooks?.post_call_webhook_id, state.workspaceWebhooks[0].webhook_id, "convai settings should reference the workspace webhook by id");
+    assert.deepEqual(state.convaiSettings.webhooks?.events, ["transcript"], "convai settings should subscribe to the transcript event");
 
     // 3. Idempotent re-run: updates instead of duplicating.
     const second = await runWireAgent(baseUrl, {
@@ -218,6 +250,7 @@ async function main() {
     assert.equal(state.secrets.length, 1, "re-run should reuse the existing secret, not duplicate it");
     assert.equal(state.tools.length, 3, "re-run should update existing tools, not duplicate them");
     assert.equal(state.agents.length, 1, "re-run should update the existing agent, not duplicate it");
+    assert.equal(state.workspaceWebhooks.length, 1, "re-run should reuse the existing workspace webhook, not duplicate it");
 
     for (const req of captured) {
       if (typeof req.headers?.["xi-api-key"] === "string") {
