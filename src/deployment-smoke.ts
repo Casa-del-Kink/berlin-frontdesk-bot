@@ -114,9 +114,11 @@ async function main() {
     assert(out.body?.ok === false, `readiness should be false: ${JSON.stringify(out.body)}`);
     assert(Array.isArray(out.body?.checks), `readiness should expose checks: ${JSON.stringify(out.body)}`);
     assert(Array.isArray(out.body?.blockers) && out.body.blockers.length > 0, `readiness should expose blockers: ${JSON.stringify(out.body)}`);
+    // Renamed by the Cal.com scheduling-provider port (PR-C): "fake calendar disabled" became
+    // "scheduling runtime provider" (same USE_FAKE_CALENDAR check, now provider-aware).
     assert(
-      out.body.checks.some((check: any) => check.name === "fake calendar disabled" && check.ok === false),
-      `readiness should flag fake calendar: ${JSON.stringify(out.body)}`,
+      out.body.checks.some((check: any) => check.name === "scheduling runtime provider" && check.ok === false),
+      `readiness should flag scheduling runtime provider: ${JSON.stringify(out.body)}`,
     );
     assert(
       out.body.checks.some((check: any) => check.name === "store backend postgres" && check.ok === false),

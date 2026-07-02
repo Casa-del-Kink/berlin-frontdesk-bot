@@ -17,11 +17,16 @@
     "supabase:postgres:smoke": "bash scripts/supabase-postgres-smoke.sh",
     "supabase:admin:smoke": "tsx src/supabase-admin-smoke.ts",
     "server:battletest": "tsx src/server-battletest.ts",
+    "server:calcom:battletest": "tsx src/server-calcom-battletest.ts",
     "voice:smoke": "tsx src/voice-agent-tool-smoke.ts",
     "demo:fake": "tsx src/fake-provider-demo.ts",
     "deployment:preflight": "tsx src/deployment-preflight.ts",
     "deployment:smoke": "tsx src/deployment-smoke.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "calcom:check": "tsx src/calcom-provider-check.ts",
+    "scheduling:provider:check": "tsx src/scheduling-provider-check.ts",
+    "calcom:smoke": "tsx src/calcom-smoke.ts",
+    "calcom:smoke:contract": "tsx src/calcom-smoke-contract.ts"
   },
   "dependencies": {
     "dotenv": "^16.4.5",
