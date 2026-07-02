@@ -1,5 +1,5 @@
 import { pathToFileURL } from "node:url";
-import { loadClient } from "./config.js";
+import { loadClient, type Client } from "./config.js";
 import { buildSystemPrompt } from "./prompt.js";
 
 // Idempotent wiring script for the ElevenLabs Conversational AI (Agents platform) voice channel.
@@ -9,6 +9,7 @@ import { buildSystemPrompt } from "./prompt.js";
 
 const AGENT_NAME = "tilda-frontdesk";
 const SECRET_NAME = "tilda-server-tool-token";
+const POST_CALL_WEBHOOK_NAME = "tilda-post-call";
 
 interface RequiredEnv {
   apiKey: string;
@@ -172,15 +173,15 @@ async function findExistingAgentId(apiKey: string): Promise<string | undefined> 
   return existing?.agent_id;
 }
 
-function firstMessage(): string {
-  return "Hallo, hier ist Tilda von Glanz und Schnitt Berlin. Ich bin die KI-Rezeption und helfe dir gern mit Terminen und Fragen.";
+function firstMessage(cfg: Client): string {
+  return `Hallo, hier ist Tilda von ${cfg.name}. Ich bin die KI-Rezeption und helfe dir gern mit Terminen und Fragen.`;
 }
 
-async function upsertAgent(apiKey: string, prompt: string, toolIds: string[], publicBaseUrl: string): Promise<string> {
+async function upsertAgent(apiKey: string, prompt: string, toolIds: string[], publicBaseUrl: string, cfg: Client): Promise<string> {
   const conversationConfig = {
     agent: {
       prompt: { prompt, tool_ids: toolIds },
-      first_message: firstMessage(),
+      first_message: firstMessage(cfg),
       language: "de",
     },
   };
@@ -191,7 +192,7 @@ async function upsertAgent(apiKey: string, prompt: string, toolIds: string[], pu
       method: "PATCH",
       body: JSON.stringify({ name: AGENT_NAME, conversation_config: conversationConfig }),
     });
-    await configurePostCallWebhook(apiKey, existingId, publicBaseUrl);
+    await configurePostCallWebhook(apiKey, publicBaseUrl);
     return existingId;
   }
 
@@ -201,16 +202,50 @@ async function upsertAgent(apiKey: string, prompt: string, toolIds: string[], pu
   });
   const agentId = created?.agent_id;
   if (!agentId) throw new WireAgentError("ElevenLabs agent creation response missing agent_id");
-  await configurePostCallWebhook(apiKey, agentId, publicBaseUrl);
+  await configurePostCallWebhook(apiKey, publicBaseUrl);
   return agentId;
 }
 
-async function configurePostCallWebhook(apiKey: string, agentId: string, publicBaseUrl: string): Promise<void> {
-  await elevenlabsFetch(apiKey, `/v1/convai/agents/${agentId}`, {
+// Post-call delivery is workspace-level, not agent-level: a workspace webhook object is
+// registered once (POST /v1/workspace/webhooks), then referenced by id from the workspace
+// Conversational AI settings (PATCH /v1/convai/settings, webhooks.post_call_webhook_id). There is
+// no inline "post_call_webhook: {url}" field on the agent itself. This is the call most likely to
+// drift from the live API; see docs/elevenlabs-voice-agent-setup.md PATH B for the console
+// fallback if this step's error output does not match what you see below.
+async function findExistingWorkspaceWebhookId(apiKey: string, name: string): Promise<string | undefined> {
+  const list = await elevenlabsFetch(apiKey, "/v1/workspace/webhooks", { method: "GET" });
+  const webhooks = Array.isArray(list?.webhooks) ? list.webhooks : [];
+  const existing = webhooks.find((w: any) => w?.name === name);
+  return existing?.webhook_id;
+}
+
+async function upsertPostCallWebhook(apiKey: string, publicBaseUrl: string): Promise<string> {
+  const existingId = await findExistingWorkspaceWebhookId(apiKey, POST_CALL_WEBHOOK_NAME);
+  if (existingId) return existingId;
+
+  const created = await elevenlabsFetch(apiKey, "/v1/workspace/webhooks", {
+    method: "POST",
+    body: JSON.stringify({
+      settings: {
+        auth_type: "hmac",
+        name: POST_CALL_WEBHOOK_NAME,
+        webhook_url: `${publicBaseUrl}/webhook/voice/post-call`,
+      },
+    }),
+  });
+  const webhookId = created?.webhook_id;
+  if (!webhookId) throw new WireAgentError("ElevenLabs workspace webhook creation response missing webhook_id");
+  return webhookId;
+}
+
+async function configurePostCallWebhook(apiKey: string, publicBaseUrl: string): Promise<void> {
+  const webhookId = await upsertPostCallWebhook(apiKey, publicBaseUrl);
+  await elevenlabsFetch(apiKey, "/v1/convai/settings", {
     method: "PATCH",
     body: JSON.stringify({
-      platform_settings: {
-        post_call_webhook: { url: `${publicBaseUrl}/webhook/voice/post-call`, method: "POST" },
+      webhooks: {
+        post_call_webhook_id: webhookId,
+        events: ["transcript"],
       },
     }),
   });
@@ -236,7 +271,7 @@ export async function wireElevenLabsAgent(): Promise<WireAgentSummary> {
     toolIds[spec.name] = await upsertTool(env.apiKey, spec, env.publicBaseUrl, secretId);
   }
 
-  const agentId = await upsertAgent(env.apiKey, prompt, Object.values(toolIds), env.publicBaseUrl);
+  const agentId = await upsertAgent(env.apiKey, prompt, Object.values(toolIds), env.publicBaseUrl, cfg);
 
   return {
     agentId,
