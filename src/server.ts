@@ -21,11 +21,11 @@ import {
   metricsOn,
   purgeOldData,
   setConversationPause,
-  type CallOutcome,
 } from "./store.js";
 import { sendWhatsapp } from "./whatsapp.js";
 import { alertOwner as alertOwnerSafe } from "./owner-alerts.js";
 import { schedulingProviderName } from "./scheduling.js";
+import { normalizeVoicePostCallPayload } from "./voice-post-call.js";
 
 const cfg = loadClient();
 const app = express();
@@ -85,12 +85,6 @@ function subjectPhone(req: express.Request) {
   return phone;
 }
 
-function callStatus(value: unknown): CallOutcome["status"] {
-  const status = String(value || "answered");
-  const allowed: CallOutcome["status"][] = ["booked", "needs_followup", "answered", "missed", "voicemail", "failed"];
-  return allowed.includes(status as CallOutcome["status"]) ? (status as CallOutcome["status"]) : "answered";
-}
-
 function retentionDays(value: unknown): number {
   const days = Number(value || process.env.DATA_RETENTION_DAYS || 90);
   if (!Number.isFinite(days) || days <= 0) throw new Error("maxAgeDays must be a positive number");
@@ -127,27 +121,25 @@ app.get("/metrics/today", async (req, res) => {
 
 // Voice/phone post-call webhook for ElevenLabs/Twilio-style call summaries.
 // Do not store raw transcripts by default; store a short summary + optional URLs only when configured upstream.
+// normalizeVoicePostCallPayload accepts real ElevenLabs payload shapes (flat, data.*, data.analysis.*)
+// in addition to the flat fields this endpoint already accepted, so existing callers are unaffected.
 app.post("/webhook/voice/post-call", async (req, res) => {
   if (!validateToolRequest(req)) return res.status(401).json({ error: "Unauthorized" });
-  const phone = String(req.body.phone || req.body.caller || "").trim();
-  if (!phone) return res.status(400).json({ error: "Missing required phone" });
 
-  const outcome = {
-    callId: String(req.body.callId || req.body.call_id || `call_${Date.now()}`),
-    phone,
-    status: callStatus(req.body.status),
-    summary: req.body.summary ? String(req.body.summary).slice(0, 1000) : undefined,
-    transcriptUrl: req.body.transcriptUrl ? String(req.body.transcriptUrl) : undefined,
-    recordingUrl: req.body.recordingUrl ? String(req.body.recordingUrl) : undefined,
-    createdAt: new Date().toISOString(),
-  };
+  const normalized = normalizeVoicePostCallPayload(req.body, {
+    storeTranscriptUrl: process.env.VOICE_STORE_TRANSCRIPT_URLS === "true",
+    storeRecordingUrl: process.env.VOICE_STORE_RECORDING_URLS === "true",
+  });
+  if (!normalized.outcome) return res.status(400).json({ error: normalized.error || "Invalid voice post-call payload" });
+
+  const outcome = normalized.outcome;
   const stored = await addCallOutcome(outcome);
 
   if (stored.inserted && (outcome.status === "needs_followup" || outcome.status === "missed" || outcome.status === "voicemail" || outcome.status === "failed")) {
-    await alertOwner(`Phone follow-up needed: ${phone} · ${outcome.status}${outcome.summary ? ` · ${outcome.summary}` : ""}`);
+    await alertOwner(`Phone follow-up needed: ${outcome.phone} · ${outcome.status}${outcome.summary ? ` · ${outcome.summary}` : ""}`);
   }
 
-  res.json({ ok: true, outcome: stored.outcome, idempotentReplay: !stored.inserted });
+  res.json({ ok: true, outcome: stored.outcome, idempotentReplay: !stored.inserted, followUpDraft: normalized.followUpDraft, warnings: normalized.warnings });
 });
 
 // GDPR-support endpoints for first pilots: export/delete one customer's stored conversation and lead data.
