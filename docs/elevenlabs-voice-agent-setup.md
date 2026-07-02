@@ -2,7 +2,7 @@
 
 Purpose: connect the phone-first Tilda demo to a natural voice agent without changing the backend brain.
 
-Tilda remains one virtual front desk across phone and WhatsApp. ElevenLabs is the voice layer. The backend remains the source of truth for availability, booking, follow-up capture, owner alerts, metrics, and retention.
+Tilda remains one virtual front desk across phone and WhatsApp. ElevenLabs Conversational AI (Agents platform) is the voice layer. The backend remains the source of truth for availability, booking, follow-up capture, owner alerts, metrics, and retention.
 
 ## Target pilot flow
 
@@ -11,7 +11,7 @@ caller phones Tilda number
 telephony provider routes call to ElevenLabs voice agent
 ElevenLabs speaks as Tilda
 ElevenLabs calls Tilda server tools over HTTPS
-Tilda backend checks calendar, books, or registers follow-up
+Tilda backend checks scheduling, books, or registers follow-up
 ElevenLabs sends post-call summary webhook
 owner alert and metrics update
 ```
@@ -34,21 +34,87 @@ Authorization: Bearer <SERVER_TOOL_TOKEN>
 Content-Type: application/json
 ```
 
+`POST /webhook/voice/post-call` accepts several real ElevenLabs payload shapes (flat fields, `data.*`, and `data.analysis.*`), normalized by `src/voice-post-call.ts` before storage. See "Post-call payload shapes" below.
+
 ## Credential-free voice tool smoke
 
-Before connecting ElevenLabs, run the deterministic local smoke against the real Express endpoints with fake calendar and JSON state:
+Before connecting ElevenLabs, run the deterministic local smokes against the real Express endpoints with fake scheduling and JSON state, plus the two contract-level smokes that need no network:
 
 ```bash
 npm run voice:smoke
+npm run voice:contract:smoke
+npm run voice:post-call:smoke
 ```
 
-Expected marker:
+Expected markers:
 
 ```text
 VOICE_AGENT_TOOL_SMOKE_OK
+VOICE_AGENT_CONTRACT_SMOKE_OK
+VOICE_POST_CALL_NORMALIZER_SMOKE_OK
 ```
 
-This starts the server locally, calls availability, booking, follow-up registration, and post-call summary endpoints with bearer auth, then checks phone-channel metrics and retry idempotency. It does not call ElevenLabs, Twilio, Google Calendar, Supabase, or any paid provider.
+These start the server locally, call availability, booking, follow-up registration, and post-call summary endpoints with bearer auth, then check phone-channel metrics, retry idempotency, and payload normalization. None of them call ElevenLabs, Twilio, or any paid provider.
+
+## PATH A: automatic wiring (default)
+
+`npm run voice:wire-agent` creates or updates one ElevenLabs Conversational AI agent named `tilda-frontdesk` (or reuses `ELEVENLABS_AGENT_ID` if set), attaches the three server tools, and configures the post-call webhook. It is idempotent: re-running it updates the existing agent, secret, and tools instead of duplicating them. It must run WHERE THE ENV LIVES, because it reads `ELEVENLABS_API_KEY`, `VOICE_AGENT_PUBLIC_BASE_URL`, and `SERVER_TOOL_TOKEN` directly from the process environment and never prints their values.
+
+### Run from the Render shell (after Stage-2b env is set)
+
+`SERVER_TOOL_TOKEN` is already present in that environment; Render generates it automatically (see `render.yaml`, `generateValue: true`). Set `ELEVENLABS_API_KEY` and `VOICE_AGENT_PUBLIC_BASE_URL` in the Render dashboard first (the latter is the same public HTTPS host already used for `TWILIO_WEBHOOK_BASE_URL`), then:
+
+```bash
+render ssh -s berlin-frontdesk-bot
+npm run voice:wire-agent
+```
+
+### Run from a local shell instead
+
+Only if you export the same three variables locally (never commit them):
+
+```bash
+ELEVENLABS_API_KEY=... VOICE_AGENT_PUBLIC_BASE_URL=https://<public-host> SERVER_TOOL_TOKEN=... npm run voice:wire-agent
+```
+
+### Expected output
+
+```text
+VOICE_WIRE_AGENT_SUMMARY_START
+agent_id=...
+tool_id[check_availability]=...
+tool_id[book_appointment]=...
+tool_id[register_lead]=...
+post_call_webhook=https://<public-host>/webhook/voice/post-call
+secret_name=tilda-server-tool-token
+VOICE_WIRE_AGENT_OK
+```
+
+No secret value is ever printed. On failure the script prints `VOICE_WIRE_AGENT_FAILED` plus the API error message (or, for missing environment variables, the exact variable names) and exits non-zero. If the live ElevenLabs API shape differs from what the script expects at runtime, it fails with that error message rather than guessing; fall back to PATH B below.
+
+### Prove the wiring script without a real API key
+
+```bash
+npm run voice:wire-agent:smoke
+```
+
+Expected marker: `VOICE_WIRE_AGENT_SMOKE_OK`. This spawns the real script against a local mock ElevenLabs HTTP server (`ELEVENLABS_API_BASE_URL` override) and proves: the secret, agent, and three tools are created with correct payloads (tool URLs point at the public base, tool auth references the workspace secret rather than a raw token, and the agent prompt carries the AI disclosure with no em dash and confirms SMS is out of scope, not offered); a second run updates instead of duplicating; missing environment variables fail closed and are named in the error; and the real `SERVER_TOOL_TOKEN`/`ELEVENLABS_API_KEY` values never appear in stdout or stderr.
+
+## PATH B: manual console fallback
+
+Use this if PATH A cannot complete against the live API (see its error output) or before automating anything, to understand what gets created.
+
+1. In the ElevenLabs dashboard, create a Conversational AI agent named `tilda-frontdesk`.
+2. Set the agent prompt to the same content `src/prompt.ts` (`buildSystemPrompt`) generates for the active client, and the first message to the German phone opening below.
+3. Add three custom webhook tools using the shapes below, each with the same bearer token as `SERVER_TOOL_TOKEN`, stored as a workspace secret and referenced by the tool's Authorization header rather than pasted as plain text.
+4. Set the post-call webhook to `POST https://<public-host>/webhook/voice/post-call` with the same bearer auth.
+5. Run `npm run voice:contract:smoke` locally to confirm the fields below still match what the code expects; if not, the contract generator (`src/elevenlabs-agent-contract.ts`) is the source of truth, not this document.
+
+You can also print the exact live contract (URLs, auth reminder, required bodies) at any time:
+
+```bash
+VOICE_AGENT_PUBLIC_BASE_URL=https://<public-host> SERVER_TOOL_TOKEN=... npx tsx src/elevenlabs-agent-contract.ts
+```
 
 ## Tool mapping
 
@@ -166,7 +232,7 @@ Endpoint:
 POST /webhook/voice/post-call
 ```
 
-Body:
+Minimal body:
 
 ```json
 {
@@ -188,11 +254,23 @@ voicemail
 failed
 ```
 
+## Post-call payload shapes
+
+`src/voice-post-call.ts` accepts more than the minimal body above, because real ElevenLabs post-call webhooks nest fields differently depending on configuration. All of the following are read, in order of preference:
+
+- call id: `callId`, `call_id`, `conversationId`, `conversation_id`, `externalCallId`, `external_call_id`, or nested under `data.*`
+- phone: `phone`, `caller`, `caller_id`, `from`, or nested under `data.*`
+- status: direct `status`/`call_status`, or derived from `outcome`/`result`/`analysis.outcome`/`data.analysis.call_outcome`, or from `callSuccessful`/`data.analysis.call_successful`
+- summary: `summary`, `call_summary`, `analysis.summary`, `analysis.transcript_summary`, or the `data.analysis.*` equivalents
+
+A raw `transcript` field is never stored; if present without a summary, a warning is returned so the response makes that explicit. The normalizer also produces a `followUpDraft`: a German WhatsApp follow-up message drafted from the call outcome, always marked `reviewRequired: true` except for a confirmed booking.
+
 Default storage rule:
 
 - store short summary only
 - do not store raw audio
 - do not store full transcript unless explicitly approved and disclosed
+- transcript and recording URLs are dropped by default; set `VOICE_STORE_TRANSCRIPT_URLS=true` / `VOICE_STORE_RECORDING_URLS=true` only after that review, per `src/voice-post-call.ts`
 
 ## ElevenLabs agent identity
 
@@ -207,8 +285,33 @@ docs/demo-script-hair-salon.md
 Agent opening:
 
 ```text
-Hallo, hier ist Tilda von Glanz & Schnitt Berlin. Ich helfe dir gern mit Terminen und Fragen.
+Hallo, hier ist Tilda von Glanz und Schnitt Berlin. Ich bin die KI-Rezeption und helfe dir gern mit Terminen und Fragen.
 ```
+
+## In-browser test-call script (German)
+
+Run this once in the ElevenLabs dashboard's browser test-call widget after wiring the agent, before any real telephony number is connected. This exercises the same tool calls a live caller would trigger.
+
+```text
+Caller: Hallo, ich hätte gern einen Termin für einen Damenhaarschnitt.
+Tilda: [greets, confirms service, calls check_availability, offers two times]
+Caller: [picks a time]
+Tilda: [asks for the caller's name]
+Caller: [gives a name]
+Tilda: [calls book_appointment, confirms the booking in one sentence]
+Caller: Danke, das passt.
+Tilda: [closes warmly, no filler]
+```
+
+Timeout budget: each tool call round trip should complete in 5 seconds or less. If a call exceeds that, check the backend logs and the public HTTPS path before blaming the model.
+
+## Evidence Phase 3 needs
+
+Capture all three before declaring the voice channel demo-ready:
+
+1. One real tool-call round trip logged (request + response + latency) from the in-browser test call.
+2. The post-call webhook receipt logged on the backend (`POST /webhook/voice/post-call` with a 200 response and a stored `CallOutcome`).
+3. The in-browser voice demo itself: a full booking or follow-up conversation, confirmed against `GET /metrics/today` afterward.
 
 ## Voice behavior rules
 
@@ -229,18 +332,19 @@ Hallo, hier ist Tilda von Glanz & Schnitt Berlin. Ich helfe dir gern mit Termine
 
 ## Provider configuration checklist
 
-- [ ] Voice provider selected: ElevenLabs or named alternative
+- [ ] Voice provider selected: ElevenLabs Conversational AI
 - [ ] Telephony provider selected: Twilio Voice, Sipgate, Telnyx, Vonage, or Plivo
-- [ ] Public HTTPS backend URL exists
-- [ ] `SERVER_TOOL_TOKEN` set
-- [ ] Tools configured with bearer authorization
-- [ ] Tilda dev calendar smoke passed
+- [ ] Public HTTPS backend URL exists (`VOICE_AGENT_PUBLIC_BASE_URL`)
+- [ ] `SERVER_TOOL_TOKEN` set (Render generates this automatically)
+- [ ] `npm run voice:wire-agent` run from the Render shell, or PATH B completed manually
+- [ ] Tilda scheduling smoke passed
 - [ ] Supabase Postgres smoke passed or explicitly deferred
 - [ ] Call recording disabled by default
 - [ ] Full transcript storage disabled by default
 - [ ] Post-call summary webhook enabled
 - [ ] Owner alert path verified
 - [ ] German opening reviewed
+- [ ] In-browser test-call completed with evidence captured
 
 ## Local verification before live provider setup
 
@@ -252,6 +356,10 @@ npm run typecheck
 npm run check
 npm run first-test:smoke
 npm run server:battletest
+npm run voice:smoke
+npm run voice:contract:smoke
+npm run voice:post-call:smoke
+npm run voice:wire-agent:smoke
 ```
 
 `server:battletest` already exercises:
@@ -260,8 +368,7 @@ npm run server:battletest
 - availability tool
 - booking tool
 - double-book guard
-- voice post-call webhook
-- idempotent provider retry handling
+- voice post-call webhook, including idempotent provider retry handling
 - owner alert dry run
 - metrics
 - privacy export/delete basics
@@ -270,9 +377,9 @@ npm run server:battletest
 
 Still needed before a real call can be answered:
 
-- selected voice provider account
+- selected voice provider account with `ELEVENLABS_API_KEY` set where the wiring script runs
 - telephony number or forwarding setup
-- public HTTPS deployment URL
+- public HTTPS deployment URL (`VOICE_AGENT_PUBLIC_BASE_URL`)
 - runtime secrets configured
 - Supabase or accepted temporary store decision
 
@@ -285,5 +392,5 @@ A successful first live voice demo means:
 3. Tilda checks availability via backend tool.
 4. Tilda offers concrete slots.
 5. Tilda books or captures follow-up.
-6. Calendar, owner alert, metrics, and post-call summary all update.
+6. Scheduling, owner alert, metrics, and post-call summary all update.
 7. No customer-facing text or voice sounds like a generic AI bot.
