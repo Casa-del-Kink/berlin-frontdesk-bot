@@ -188,7 +188,10 @@ function assertStrictStartupRequiresDeploymentReadiness() {
   const combined = `${result.stdout ?? ""}${result.stderr ?? ""}`;
   assert(result.status !== 0, "REQUIRE_LIVE_PILOT_READINESS=true should refuse startup while blockers remain");
   assert(combined.includes("Deployment readiness blockers"), `strict startup should print deployment blockers: ${combined}`);
-  assert(combined.includes("fake calendar disabled"), `strict startup should include fake-calendar blocker: ${combined}`);
+  // Renamed by the Cal.com scheduling-provider port (PR-C): "fake calendar disabled" became
+  // "scheduling runtime provider" so the same USE_FAKE_CALENDAR=true-vs-live check now also
+  // covers SCHEDULING_PROVIDER=calcom. Assertion content unchanged, only the gate name.
+  assert(combined.includes("scheduling runtime provider"), `strict startup should include scheduling-runtime blocker: ${combined}`);
   assert(combined.includes("store backend postgres"), `strict startup should include Postgres blocker: ${combined}`);
 }
 
@@ -319,13 +322,16 @@ async function main() {
     assert(out.res.status === 409, `fake/missing-credential readiness should be 409, got ${out.res.status} ${JSON.stringify(out.body)}`);
     assert(out.body?.ok === false, `readiness body should be not ok: ${JSON.stringify(out.body)}`);
     assert(Array.isArray(out.body?.blockers) && out.body.blockers.length > 0, `readiness should list blockers: ${JSON.stringify(out.body)}`);
+    // Renamed by the Cal.com scheduling-provider port (PR-C): "calendar provider" became
+    // "scheduling provider" and "fake calendar disabled" became "scheduling runtime provider".
+    // Same underlying checks (Google credentials / USE_FAKE_CALENDAR), now provider-aware.
     assert(
-      Array.isArray(out.body?.checks) && out.body.checks.some((check: any) => check.name === "calendar provider" && check.ok === false),
-      `readiness should flag calendar provider: ${JSON.stringify(out.body)}`,
+      Array.isArray(out.body?.checks) && out.body.checks.some((check: any) => check.name === "scheduling provider" && check.ok === false),
+      `readiness should flag scheduling provider: ${JSON.stringify(out.body)}`,
     );
     assert(
-      out.body.checks.some((check: any) => check.name === "fake calendar disabled" && check.ok === false),
-      `readiness should flag fake calendar deployment blocker: ${JSON.stringify(out.body)}`,
+      out.body.checks.some((check: any) => check.name === "scheduling runtime provider" && check.ok === false),
+      `readiness should flag scheduling runtime deployment blocker: ${JSON.stringify(out.body)}`,
     );
 
     out = await json("/metrics/today", { headers: { authorization: `Bearer ${TOKEN}` } });
