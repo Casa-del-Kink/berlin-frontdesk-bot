@@ -2,6 +2,7 @@ import { spawn, spawnSync } from "node:child_process";
 import { existsSync, rmSync } from "node:fs";
 import { createRequire } from "node:module";
 import { setTimeout as sleep } from "node:timers/promises";
+import twilio from "twilio";
 import { validateLivePilotReadiness } from "./config.js";
 import { deploymentChecks } from "./readiness.js";
 import { findUnconfiguredPrices } from "./tools.js";
@@ -11,8 +12,25 @@ const BASE = `http://127.0.0.1:${PORT}`;
 const TOKEN = "server-battletest-token";
 const STATE_FILE = "data/server-battletest-state.json";
 const CALENDAR_FILE = "data/server-battletest-calendar.json";
+// Deterministic Twilio signing setup for the main spawned server so pause/expiry webhook POSTs
+// can be signed the same way a real Twilio webhook is, instead of tolerating a 403 from an
+// unsigned request. Also pre-builds Phase 3's replay-signing harness.
+const TWILIO_AUTH_TOKEN = "battletest-twilio-token";
+const TWILIO_WEBHOOK_BASE_URL = `http://127.0.0.1:${PORT}`;
 const require = createRequire(import.meta.url);
 const TSX_CLI = require.resolve("tsx/cli");
+
+/** Signs a WhatsApp webhook form POST the way Twilio would, for the given absolute webhook path. */
+function signedWhatsappWebhookInit(params: Record<string, string>): RequestInit {
+  const url = `${TWILIO_WEBHOOK_BASE_URL}/webhook/whatsapp`;
+  const signature = twilio.getExpectedTwilioSignature(TWILIO_AUTH_TOKEN, url, params);
+  const form = new URLSearchParams(params);
+  return {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded", "x-twilio-signature": signature },
+    body: form,
+  };
+}
 
 function removeIfExists(path: string) {
   if (existsSync(path)) rmSync(path);
@@ -246,6 +264,8 @@ async function main() {
       STATE_FILE,
       SERVER_TOOL_TOKEN: TOKEN,
       SKIP_TWILIO_SIGNATURE_VALIDATION: "false",
+      TWILIO_AUTH_TOKEN,
+      TWILIO_WEBHOOK_BASE_URL,
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -434,24 +454,15 @@ async function main() {
     out = await json("/operator/pause", authJson({ phone: pausedWaPhone, hours: 1 }));
     assert(out.res.ok, `pause-for-webhook-test setup failed: ${JSON.stringify(out.body)}`);
 
-    const pausedForm = new URLSearchParams();
-    pausedForm.set("From", pausedWaPhone);
-    pausedForm.set("Body", "Hallo, ist noch jemand da?");
-    out = await json("/webhook/whatsapp", {
-      method: "POST",
-      headers: { "content-type": "application/x-www-form-urlencoded", "x-forwarded-proto": "https" },
-      body: pausedForm,
-    });
-    assert(out.res.status === 200 || out.res.status === 403, `paused webhook call unexpected status: ${out.res.status}`);
-    if (out.res.status === 200) {
-      await sleep(300);
-      const pausedExport = await json("/privacy/export", authJson({ phone: pausedWaPhone }));
-      const lastMessage = pausedExport.body?.conversations?.at(-1);
-      assert(
-        lastMessage?.role === "assistant" && lastMessage?.content?.includes("Kollegin"),
-        `paused conversation should get the static handoff reply, got: ${JSON.stringify(lastMessage)}`,
-      );
-    }
+    out = await json("/webhook/whatsapp", signedWhatsappWebhookInit({ From: pausedWaPhone, Body: "Hallo, ist noch jemand da?" }));
+    assert(out.res.status === 200, `paused webhook call should be a valid signed request accepted with 200, got ${out.res.status}`);
+    await sleep(300);
+    const pausedExport = await json("/privacy/export", authJson({ phone: pausedWaPhone }));
+    const lastMessage = pausedExport.body?.conversations?.at(-1);
+    assert(
+      lastMessage?.role === "assistant" && lastMessage?.content?.includes("Kollegin"),
+      `paused conversation should get the static handoff reply, got: ${JSON.stringify(lastMessage)}`,
+    );
     out = await json("/privacy/delete", authJson({ phone: pausedWaPhone }));
     assert(out.res.ok, `paused-webhook fixture cleanup failed`);
 
@@ -461,23 +472,20 @@ async function main() {
     out = await json("/operator/pause", authJson({ phone: expiredWaPhone, hours: 0.0001 }));
     assert(out.res.ok, `expiry setup pause failed: ${JSON.stringify(out.body)}`);
     await sleep(1000);
-    const expiredForm = new URLSearchParams();
-    expiredForm.set("From", expiredWaPhone);
-    expiredForm.set("Body", "Hallo nochmal");
-    out = await json("/webhook/whatsapp", {
-      method: "POST",
-      headers: { "content-type": "application/x-www-form-urlencoded", "x-forwarded-proto": "https" },
-      body: expiredForm,
-    });
-    if (out.res.status === 200) {
-      await sleep(300);
-      const expiredExport = await json("/privacy/export", authJson({ phone: expiredWaPhone }));
-      assert(!expiredExport.body?.pausedUntil, `pause should be cleared once expired: ${JSON.stringify(expiredExport.body)}`);
-    }
+    out = await json("/webhook/whatsapp", signedWhatsappWebhookInit({ From: expiredWaPhone, Body: "Hallo nochmal" }));
+    assert(out.res.status === 200, `expired webhook call should be a valid signed request accepted with 200, got ${out.res.status}`);
+    await sleep(300);
+    const expiredExport = await json("/privacy/export", authJson({ phone: expiredWaPhone }));
+    assert(!expiredExport.body?.pausedUntil, `pause should be cleared once expired: ${JSON.stringify(expiredExport.body)}`);
+    const expiredLastMessage = expiredExport.body?.conversations?.at(-1);
+    assert(
+      !expiredLastMessage?.content?.includes("Kollegin"),
+      `expired conversation should NOT get the static handoff reply, got: ${JSON.stringify(expiredLastMessage)}`,
+    );
     out = await json("/privacy/delete", authJson({ phone: expiredWaPhone }));
     assert(out.res.ok, `expired-webhook fixture cleanup failed`);
 
-    // /operator/alert-test: auth seam + dry-run send (no Twilio creds in this test env).
+    // /operator/alert-test: auth seam + dry-run send (client YAML leaves ownerWhatsapp empty).
     out = await json("/operator/alert-test", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({}) });
     assert(out.res.status === 401, `operator alert-test without bearer should be 401, got ${out.res.status}`);
 
