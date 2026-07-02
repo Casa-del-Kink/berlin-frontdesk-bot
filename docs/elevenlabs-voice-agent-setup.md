@@ -87,12 +87,23 @@ tool_id[book_appointment]=...
 tool_id[register_lead]=...
 post_call_webhook=https://<public-host>/webhook/voice/post-call
 secret_name=tilda-server-tool-token
+post-call webhook created; copy its HMAC secret from the ElevenLabs dashboard (Webhooks section) into the Render env as ELEVENLABS_WEBHOOK_SECRET, then redeploy
 VOICE_WIRE_AGENT_OK
 ```
 
-No secret value is ever printed. On failure the script prints `VOICE_WIRE_AGENT_FAILED` plus the API error message (or, for missing environment variables, the exact variable names) and exits non-zero. If the live ElevenLabs API shape differs from what the script expects at runtime, it fails with that error message rather than guessing; fall back to PATH B below.
+The "post-call webhook created" line only appears the first time the script creates the workspace webhook (idempotent re-runs that reuse an existing webhook skip it). No secret value is ever printed. On failure the script prints `VOICE_WIRE_AGENT_FAILED` plus the API error message (or, for missing environment variables, the exact variable names) and exits non-zero. If the live ElevenLabs API shape differs from what the script expects at runtime, it fails with that error message rather than guessing; fall back to PATH B below.
 
 The single call most likely to drift from the live API is `configurePostCallWebhook` in `src/elevenlabs-wire-agent.ts`. Post-call delivery is a workspace-level setting, not an agent field: the script registers a workspace webhook object once (`POST /v1/workspace/webhooks`, idempotent by name `tilda-post-call`), then references it by id from the workspace Conversational AI settings (`PATCH /v1/convai/settings`, `webhooks.post_call_webhook_id`, `events: ["transcript"]`). If ElevenLabs changes either of those two endpoints or field names, this is where the error will surface. Use PATH B step 4 below for the console equivalent.
+
+### Required manual step after either path: set ELEVENLABS_WEBHOOK_SECRET
+
+Real ElevenLabs post-call deliveries authenticate ONLY via the `elevenlabs-signature` HMAC header; they never send a bearer token, because the workspace webhook was created without a bearer `request_headers` entry. The webhook creation response includes a `webhook_secret`, but the API does not expose it again afterward, and this script never prints it. You must:
+
+1. Open the ElevenLabs dashboard, workspace **Webhooks** section, find the `tilda-post-call` webhook.
+2. Copy its signing secret.
+3. Set it as `ELEVENLABS_WEBHOOK_SECRET` in the Render dashboard env (or your local `.env`), then redeploy or restart.
+
+Until `ELEVENLABS_WEBHOOK_SECRET` is set on the backend, `/webhook/voice/post-call` will 401 every real ElevenLabs delivery (bearer-only auth stays available for manual/local testing, but ElevenLabs itself never sends a bearer token). `npm run deployment:preflight` prints a WARNING named "voice post-call webhook secret" whenever voice is configured (`VOICE_AGENT_PUBLIC_BASE_URL` or `ELEVENLABS_AGENT_ID` set) but this variable is not, as a reminder.
 
 ### Prove the wiring script without a real API key
 
@@ -109,7 +120,7 @@ Use this if PATH A cannot complete against the live API (see its error output) o
 1. In the ElevenLabs dashboard, create a Conversational AI agent named `tilda-frontdesk`.
 2. Set the agent prompt to the same content `src/prompt.ts` (`buildSystemPrompt`) generates for the active client, and the first message to the German phone opening below.
 3. Add three custom webhook tools using the shapes below, each with the same bearer token as `SERVER_TOOL_TOKEN`, stored as a workspace secret and referenced by the tool's Authorization header rather than pasted as plain text.
-4. Post-call webhook (the step most likely to differ from the automatic script if the API has changed): in the ElevenLabs dashboard, go to the workspace **Webhooks** section, create a webhook named `tilda-post-call` pointing at `POST https://<public-host>/webhook/voice/post-call` with HMAC auth, then open the agent's **Analysis** (or **Webhooks**) tab and enable the post-call transcription webhook, selecting the `tilda-post-call` webhook you just created.
+4. Post-call webhook (the step most likely to differ from the automatic script if the API has changed): in the ElevenLabs dashboard, go to the workspace **Webhooks** section, create a webhook named `tilda-post-call` pointing at `POST https://<public-host>/webhook/voice/post-call` with HMAC auth, then open the agent's **Analysis** (or **Webhooks**) tab and enable the post-call transcription webhook, selecting the `tilda-post-call` webhook you just created. Copy the HMAC secret the dashboard shows at creation time and set it as `ELEVENLABS_WEBHOOK_SECRET` in the backend env, then redeploy or restart. Without this, the backend has no bearer fallback available for real ElevenLabs traffic (ElevenLabs never sends a bearer token) and every real delivery will 401.
 5. Run `npm run voice:contract:smoke` locally to confirm the fields below still match what the code expects; if not, the contract generator (`src/elevenlabs-agent-contract.ts`) is the source of truth, not this document.
 
 You can also print the exact live contract (URLs, auth reminder, required bodies) at any time:
@@ -339,6 +350,7 @@ Capture all three before declaring the voice channel demo-ready:
 - [ ] Public HTTPS backend URL exists (`VOICE_AGENT_PUBLIC_BASE_URL`)
 - [ ] `SERVER_TOOL_TOKEN` set (Render generates this automatically)
 - [ ] `npm run voice:wire-agent` run from the Render shell, or PATH B completed manually
+- [ ] `ELEVENLABS_WEBHOOK_SECRET` set on the backend from the workspace webhook's HMAC secret, then redeployed
 - [ ] Tilda scheduling smoke passed
 - [ ] Supabase Postgres smoke passed or explicitly deferred
 - [ ] Call recording disabled by default
@@ -362,6 +374,7 @@ npm run voice:smoke
 npm run voice:contract:smoke
 npm run voice:post-call:smoke
 npm run voice:wire-agent:smoke
+npm run voice:post-call-auth:smoke
 ```
 
 `server:battletest` already exercises:
