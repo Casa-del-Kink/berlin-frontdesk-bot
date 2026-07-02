@@ -18,7 +18,10 @@ services:
     branch: main
     # Deploys are explicit owner/agent actions during the pilot, never push-triggered.
     # A push to main must not silently roll traffic; someone decides to deploy.
-    autoDeploy: false
+    # `autoDeploy: false` is deprecated; `autoDeployTrigger: off` is the current field and is
+    # its exact equivalent (Render blueprint spec: "off — Disable auto-deploys. Equivalent to
+    # the deprecated setting autoDeploy: false").
+    autoDeployTrigger: off
     healthCheckPath: /health
     # Fail-closed DB check: if the target database is unreachable, the deploy itself fails
     # before traffic ever reaches a broken instance. See src/postgres-preflight.ts.
