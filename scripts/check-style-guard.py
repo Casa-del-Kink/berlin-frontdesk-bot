@@ -36,6 +36,8 @@ CHECK_FILES = [
     "src/server.ts",
     "src/voice-agent-contract-smoke.ts",
     "src/voice-post-call.ts",
+    "src/voice-post-call-auth.ts",
+    "src/voice-post-call-auth-smoke.ts",
     "src/voice-post-call-smoke.ts",
 ]
 
